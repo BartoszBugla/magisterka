@@ -1,0 +1,27 @@
+[project]
+name = "projekt-magisterski"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "openai>=2.30.0",
+    "openapi>=2.0.0",
+    "pandas>=3.0.1",
+    "playwright>=1.58.0",
+    "scikit-learn>=1.8.0",
+    "spacy>=3.8.13",
+    "streamlit>=1.45.0",
+    "torch>=2.11.0",
+    "transformers>=5.4.0",
+    "polars>=1.18.0",
+    "tqdm>=4.67.3",
+    "folium>=0.20.0",
+    "pydeck>=0.9.0",
+    "matplotlib",
+    "matplotlib-inline",
+    "ipython",
+    "pydantic>=2.12.5",
+    "emoji>=2.15.0",
+    "nbconvert>=7.17.0",
+]

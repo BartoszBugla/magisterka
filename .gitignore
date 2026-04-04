@@ -1,0 +1,10 @@
+old/
+.cursor/
+.env
+raw-datasets/
+wytyczne/
+statics/models/
+statics/results_repository/
+__pycache__/
+label_studio/
+.venv/

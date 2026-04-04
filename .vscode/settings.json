@@ -1,0 +1,6 @@
+{
+  "python.analysis.extraPaths": ["${workspaceFolder}"],
+  "jupyter.kernels.trusted": [
+    "/Users/bartoszbugla/projects/projekt-magisterski/1.data-exploration/eda.ipynb"
+  ]
+}

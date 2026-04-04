@@ -1,0 +1,21 @@
+from pathlib import Path
+
+import streamlit as st
+
+_ROOT = Path(__file__).resolve().parent
+
+st.set_page_config(
+    page_title="Projekt Magisterski - aspektowana analiza sentymentu - wyniki na mapie",
+    page_icon="🗺️",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+pages = [
+    st.Page(str(_ROOT / "pages" / "home.py"), title="Home", icon="🗺️"),
+    st.Page(str(_ROOT / "pages" / "data_table.py"), title="Data table", icon="📋"),
+    st.Page(str(_ROOT / "pages" / "label_dataset.py"), title="Label dataset", icon="🏷️"),
+    st.Page(str(_ROOT / "pages" / "repository.py"), title="Repository", icon="📦"),
+]
+
+st.navigation(pages).run()
