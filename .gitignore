@@ -3,8 +3,11 @@ old/
 .env
 raw-datasets/
 wytyczne/
+
 statics/models/
 statics/results_repository/
+statics/datasets/
+
 __pycache__/
 label_studio/
 .venv/
