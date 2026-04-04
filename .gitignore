@@ -11,3 +11,5 @@ statics/datasets/
 __pycache__/
 label_studio/
 .venv/
+
+saved_models/

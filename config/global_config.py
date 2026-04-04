@@ -84,6 +84,3 @@ class ModelType(Enum):
 
 RESULTS_REPOSITORY_DIR = "statics/results_repository"
 MODEL_DIR = "statics/models"
-
-BASE_BERT_MODEL = "bert-base-uncased"
-FINETUNED_MODEL_DIR = "statics/models/absa_1000"

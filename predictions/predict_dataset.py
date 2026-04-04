@@ -14,7 +14,7 @@ from predictions.prediction_fine_tuned import FineTunedModel
 
 API_KEY = os.environ.get("OPENAI_API_KEY")
 OPENAI_MODEL = "gpt-4o-mini"
-FINE_TUNED_MODEL_PATH = os.path.join(MODEL_DIR, "absa_1000", "model.pt")
+FINE_TUNED_MODEL_PATH = "saved_models/distilbert-base-uncased_absa.pt"
 
 PROGRESS_BAR_STEP = 10
 
@@ -57,6 +57,12 @@ def predict_dataset(
 
     for index, row in dataset.iterrows():
         text = row["text"]
+
+        if not isinstance(text, str) or not text.strip():
+            for aspect in model.aspects:
+                dataset.at[index, aspect] = None
+            done += 1
+            continue
 
         prediction = model.predict(text)
 
