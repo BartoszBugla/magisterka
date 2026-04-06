@@ -1,42 +1,28 @@
 from __future__ import annotations
 
-import os
 from collections.abc import Callable
 
 import pandas as pd
-from config.global_config import MODEL_DIR, TRAIN_ASPECTS, ModelType
+from config.global_config import TRAIN_ASPECTS, ModelType
 
-from predictions.prediction_llm import LLMPredictionModel
-from predictions.prediction_model_base import PredictionModel
-from predictions.prediction_zero_shot import ZeroShotPredictionModel
 from predictions.prediction_fine_tuned import FineTunedModel
 
 
-API_KEY = os.environ.get("OPENAI_API_KEY")
-OPENAI_MODEL = "gpt-4o-mini"
-FINE_TUNED_MODEL_PATH = "saved_models/distilbert-base-uncased_absa.pt"
-
 PROGRESS_BAR_STEP = 10
 
-_model_cache: dict[ModelType, PredictionModel] = {}
 
+models = {
+    ModelType.FINE_TUNED_BERT: lambda: FineTunedModel(
+        aspects=TRAIN_ASPECTS,
+        local_model_path="saved_models/bert-base-uncased_absa.pt",
+    ),
+    ModelType.FINE_TUNED_DISTILBERT: lambda: FineTunedModel(
+        aspects=TRAIN_ASPECTS,
+        local_model_path="saved_models/distilbert-base-uncased_absa.pt",
+    ),
+}
 
-def get_prediction_model(model_type: ModelType) -> PredictionModel:
-    if model_type not in _model_cache:
-        if model_type == ModelType.ZERO_SHOT:
-            _model_cache[model_type] = ZeroShotPredictionModel(aspects=TRAIN_ASPECTS)
-        elif model_type == ModelType.LLM:
-            _model_cache[model_type] = LLMPredictionModel(
-                aspects=TRAIN_ASPECTS, openai_model=OPENAI_MODEL, api_key=API_KEY
-            )
-        elif model_type == ModelType.FINE_TUNED:
-            _model_cache[model_type] = FineTunedModel(
-                aspects=TRAIN_ASPECTS, local_model_path=FINE_TUNED_MODEL_PATH
-            )
-        else:
-            raise KeyError(model_type)
-
-    return _model_cache[model_type]
+model_cache = {}
 
 
 def predict_dataset(
@@ -45,7 +31,14 @@ def predict_dataset(
     *,
     on_progress: Callable[[int, int], None] | None = None,
 ) -> pd.DataFrame:
-    model = get_prediction_model(model_type)
+    if model_type not in models:
+        raise ValueError(f"Model type {model_type} not found")
+
+    if model_type not in model_cache:
+        model_cache[model_type] = models[model_type]()
+
+    model = model_cache[model_type]
+
     total_rows = len(dataset)
 
     if total_rows == 0:

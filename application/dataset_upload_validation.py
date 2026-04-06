@@ -1,5 +1,3 @@
-"""Validate repository CSV uploads against declared DatasetType schemas."""
-
 from __future__ import annotations
 
 import io

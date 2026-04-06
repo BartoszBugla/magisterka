@@ -23,6 +23,7 @@ dependencies = [
     "ipython",
     "pydantic>=2.12.5",
     "emoji>=2.15.0",
+    "svgwrite>=1.4.3",
     "nbconvert>=7.17.0",
     "accelerate>=1.1.0",
 ]

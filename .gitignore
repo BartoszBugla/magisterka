@@ -7,7 +7,8 @@ wytyczne/
 statics/models/
 statics/results_repository/
 statics/datasets/
-
+statics/prediction_cache/
+results/
 __pycache__/
 label_studio/
 .venv/

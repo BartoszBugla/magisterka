@@ -3,7 +3,7 @@ from pathlib import Path
 import torch
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from config.global_config import MODEL_DIR, ModelType, SentimentLabel
+from config.global_config import MODEL_DIR, SentimentLabel
 from model.model import ABSAModel
 from model.predict import predict as absa_predict
 from predictions.prediction_model_base import PredictionModel
@@ -18,7 +18,7 @@ class FineTunedModel(PredictionModel):
         aspects: list[str] | None = None,
     ):
         aspects = aspects if aspects is not None else []
-        super().__init__(ModelType.FINE_TUNED, aspects)
+        super().__init__(aspects)
         self.model_dir = Path(local_model_path or str(MODEL_DIR))
         self._model, self._tokenizer = self._load_checkpoint(self.model_dir)
 

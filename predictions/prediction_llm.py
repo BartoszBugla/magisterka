@@ -1,6 +1,6 @@
 from openai import OpenAI
 from pydantic import BaseModel, ConfigDict, Field, create_model
-from config.global_config import ModelType, SentimentLabel
+from config.global_config import SentimentLabel
 from predictions.prediction_model_base import PredictionModel
 
 
@@ -39,7 +39,7 @@ class LLMPredictionModel(PredictionModel):
 
         aspects = aspects if aspects is not None else []
 
-        super().__init__(ModelType.LLM, aspects)
+        super().__init__(aspects)
         self.client = OpenAI(api_key=api_key)
         self.model = openai_model
         self.system_prompt = system_prompt or self._DEFAULT_SYSTEM

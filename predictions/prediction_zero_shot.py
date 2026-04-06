@@ -1,6 +1,5 @@
 from transformers import pipeline
 
-from config.global_config import ModelType
 from predictions.prediction_model_base import PredictionModel
 
 
@@ -11,7 +10,7 @@ class ZeroShotPredictionModel(PredictionModel):
         hf_model_name: str = "facebook/bart-large-mnli",
     ):
         aspects = aspects if aspects is not None else []
-        super().__init__(ModelType.ZERO_SHOT, aspects)
+        super().__init__(aspects)
 
         self.classifier = pipeline(
             "zero-shot-classification", model=hf_model_name, device="mps"

@@ -4,26 +4,217 @@ import pandas as pd
 import pydeck as pdk
 import streamlit as st
 
+from application.dataset_cards import (
+    get_dataset_stats,
+    group_entries_by_type,
+    render_dataset_card_readonly,
+)
 from application.dataset_types import DatasetType
-from application.dataset_upload_validation import REPOSITORY_MAP_SYNTHETIC_ASPECT
 from application.map_components import build_map
-from application.results_repository import repository as repo
-from config.global_config import NON_ASPECT_COLUMNS, TRAIN_ASPECTS
+from application.notifications import notify
+from application.place_details import (
+    compute_place_keys,
+    find_metadata_for_place,
+    list_metadata_files,
+    load_metadata,
+    render_place_dialog,
+    reviews_for_place,
+)
+from application.results_repository import EntryMetadata, repository as repo
+from config.global_config import TRAIN_ASPECTS
 
 
-def prepare_dataframe_for_map_and_table(df: pd.DataFrame) -> pd.DataFrame:
-    return df
+def _render_dataset_gallery(entries: list[EntryMetadata]) -> str | None:
+    st.subheader("Select a dataset")
+
+    labelled, other = group_entries_by_type(entries)
+    selected: str | None = None
+
+    if labelled:
+        st.markdown("##### Labelled datasets")
+        cols = st.columns(2)
+        for i, entry in enumerate(labelled):
+            with cols[i % 2]:
+                stats = get_dataset_stats(entry.csv_filename)
+                if render_dataset_card_readonly(entry, stats):
+                    selected = entry.csv_filename
+
+    if other:
+        st.markdown("##### Other datasets")
+        cols = st.columns(2)
+        for i, entry in enumerate(other):
+            with cols[i % 2]:
+                stats = get_dataset_stats(entry.csv_filename)
+                if render_dataset_card_readonly(entry, stats):
+                    selected = entry.csv_filename
+
+    return selected
 
 
-def aspect_columns(df: pd.DataFrame) -> list[str]:
-    return sorted(
-        c
-        for c in df.columns
-        if c != REPOSITORY_MAP_SYNTHETIC_ASPECT and c.lower() not in NON_ASPECT_COLUMNS
+def _available_aspects(df: pd.DataFrame) -> list[str]:
+    return [a for a in TRAIN_ASPECTS if a in df.columns]
+
+
+def _load_dataset(csv_filename: str) -> pd.DataFrame | None:
+    try:
+        return pd.read_csv(repo.get_csv_path(csv_filename))
+    except Exception as e:
+        notify.error("Could not load CSV", exception=e)
+        return None
+
+
+def _validate_coords(df: pd.DataFrame) -> pd.DataFrame | None:
+    for col in ("latitude", "longitude"):
+        if col not in df.columns:
+            notify.error(f"Missing required column: `{col}`")
+            return None
+    lat = pd.to_numeric(df["latitude"], errors="coerce")
+    lon = pd.to_numeric(df["longitude"], errors="coerce")
+    ok = lat.notna() & lon.notna()
+    valid = df.loc[ok].copy()
+    if valid.empty:
+        notify.warning("No rows with valid coordinates")
+        return None
+    return valid
+
+
+@st.dialog("Place Details", width="large")
+def _open_place_dialog() -> None:
+    """Modal reading selection context from session state."""
+    place_info = st.session_state.get("_sel_place")
+    reviews = st.session_state.get("_sel_reviews")
+    metadata = st.session_state.get("_sel_metadata")
+    aspect = st.session_state.get("_sel_aspect", TRAIN_ASPECTS[0])
+    aspects = st.session_state.get("_sel_aspects", TRAIN_ASPECTS)
+
+    if place_info is None or reviews is None:
+        notify.warning("No place selected")
+        return
+
+    render_place_dialog(place_info, reviews, metadata, aspect, aspects)
+
+
+def _handle_selection(
+    event,
+    df_raw: pd.DataFrame,
+    place_keys: pd.Series,
+    metadata_df: pd.DataFrame,
+    aspect: str,
+    aspects: list[str],
+    layer_id: str = "absa-points",
+) -> None:
+    if event is None or event.selection is None:
+        return
+
+    objects = event.selection.get("objects", {})
+    layer_hits = objects.get(layer_id, [])
+
+    if not layer_hits:
+        st.session_state.pop("_sel_opened_key", None)
+        return
+
+    clicked = layer_hits[0]
+    place_key = clicked.get("_place_key")
+    if not place_key:
+        return
+
+    if place_key == st.session_state.get("_sel_opened_key"):
+        return
+    st.session_state["_sel_opened_key"] = place_key
+
+    reviews = reviews_for_place(df_raw, place_keys, place_key)
+    meta = find_metadata_for_place(
+        metadata_df,
+        gmap_id=clicked.get("gmap_id_display"),
+        place_name=clicked.get("place_name"),
     )
 
+    st.session_state["_sel_place"] = clicked
+    st.session_state["_sel_reviews"] = reviews
+    st.session_state["_sel_metadata"] = meta
+    st.session_state["_sel_aspect"] = aspect
+    st.session_state["_sel_aspects"] = aspects
 
-st.title("Map")
+    _open_place_dialog()
+
+
+def _render_map_view(csv_filename: str, entry_meta: EntryMetadata) -> None:
+    col_title, col_back = st.columns([5, 1])
+    with col_title:
+        st.subheader(f"Map: {csv_filename}")
+    with col_back:
+        if st.button("← Back", use_container_width=True):
+            st.session_state.pop("selected_dataset", None)
+            st.rerun()
+
+    df_raw = _load_dataset(csv_filename)
+    if df_raw is None or df_raw.empty:
+        notify.warning("This dataset has no rows")
+        return
+
+    prepared = _validate_coords(df_raw)
+    if prepared is None:
+        return
+
+    metadata_df = pd.DataFrame()
+    meta_files = list_metadata_files()
+    if meta_files:
+        with st.expander("Metadata file (optional — enriches place details)"):
+            meta_choice = st.selectbox(
+                "Metadata CSV",
+                options=["None"] + [p.name for p in meta_files],
+                key="meta_csv_select",
+            )
+            if meta_choice != "None":
+                matched = [p for p in meta_files if p.name == meta_choice]
+                if matched:
+                    metadata_df = load_metadata(str(matched[0]))
+
+    is_labelled = entry_meta.dataset_type in (
+        DatasetType.LABELLED_AI,
+        DatasetType.LABELLED_HUMAN,
+    )
+
+    aspect = "name"
+    aspects = _available_aspects(prepared) or TRAIN_ASPECTS
+
+    if is_labelled:
+        aspect = st.selectbox(
+            "Aspect (map colors follow this column)",
+            aspects,
+        )
+
+    place_keys = compute_place_keys(prepared)
+
+    lat = pd.to_numeric(prepared["latitude"], errors="coerce")
+    lon = pd.to_numeric(prepared["longitude"], errors="coerce")
+
+    view = pdk.ViewState(
+        latitude=float(lat.median()),
+        longitude=float(lon.median()),
+        zoom=10,
+    )
+
+    deck, scatter_df = build_map(
+        prepared,
+        aspect=aspect,
+        viz_type="Points",
+        view_state=view,
+        point_size=1.0,
+    )
+
+    event = st.pydeck_chart(
+        deck,
+        use_container_width=True,
+        on_select="rerun",
+        selection_mode="single-object",
+        key="map_chart",
+    )
+
+    _handle_selection(event, prepared, place_keys, metadata_df, aspect, aspects)
+
+
+st.title("ABSA Map Explorer")
 
 entries = repo.list_entries()
 if not entries:
@@ -33,75 +224,16 @@ if not entries:
     st.stop()
 
 by_name = {e.csv_filename: e for e in entries}
-choice = st.selectbox(
-    "Dataset",
-    options=list(by_name),
-    format_func=lambda fn: f"{by_name[fn].dataset_type.label_pl} — {fn}",
-)
-meta = by_name[choice]
 
-try:
-    df_raw = pd.read_csv(repo.get_csv_path(choice))
-except Exception as e:
-    st.error(f"Could not load CSV: {e}")
-    st.stop()
+selected = st.session_state.get("selected_dataset")
 
-if df_raw.empty:
-    st.warning("This dataset has no rows.")
-    st.stop()
-
-for col in ("latitude", "longitude"):
-    if col not in df_raw.columns:
-        st.error(f"Missing required column: `{col}`.")
-        st.stop()
-
-prepared = prepare_dataframe_for_map_and_table(df_raw)
-
-is_labelled = meta.dataset_type in (
-    DatasetType.LABELLED_AI,
-    DatasetType.LABELLED_HUMAN,
-)
-
-aspect = "name"
-if is_labelled:
-    aspect = st.selectbox(
-        "Aspect (map colors follow this column)",
-        TRAIN_ASPECTS,
-        help=(
-            "Per place: more negative than positive labels → red/orange; "
-            "more positive than negative → green; "
-            "no positive/negative mentions (only neutral / not mentioned) → gray."
-        ),
-    )
-    st.caption(
-        "**Colors:** green — dominant positive; dark red / orange — dominant negative "
-        "(orange when mixed); **gray** — no pos./neg. signal for this aspect; "
-        "**amber** — equal pos. and neg. counts."
-    )
-
-lat = pd.to_numeric(prepared["latitude"], errors="coerce")
-lon = pd.to_numeric(prepared["longitude"], errors="coerce")
-
-ok = lat.notna() & lon.notna()
-
-
-prepared_map = prepared.loc[ok].copy()
-
-if prepared_map.empty:
-    st.warning("No rows with valid coordinates.")
-    st.stop()
-
-view = pdk.ViewState(
-    latitude=float(lat[ok].median()),
-    longitude=float(lon[ok].median()),
-    zoom=10,
-)
-
-deck = build_map(
-    prepared_map,
-    aspect=aspect,
-    viz_type="Points",
-    view_state=view,
-    point_size=1.0,
-)
-st.pydeck_chart(deck, use_container_width=True)
+if selected is None:
+    clicked = _render_dataset_gallery(entries)
+    if clicked:
+        st.session_state["selected_dataset"] = clicked
+        st.rerun()
+else:
+    if selected not in by_name:
+        st.session_state.pop("selected_dataset", None)
+        st.rerun()
+    _render_map_view(selected, by_name[selected])

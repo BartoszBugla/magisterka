@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import html
+import math
 from typing import Any
 
 import pandas as pd
@@ -6,6 +9,8 @@ import pydeck as pdk
 
 from application.dataset_upload_validation import REPOSITORY_MAP_SYNTHETIC_ASPECT
 from config.global_config import SENTIMENT_LABELS
+
+_LABEL_SET = frozenset(SENTIMENT_LABELS)
 
 
 def _first_non_empty_str(series: pd.Series) -> str:
@@ -18,19 +23,7 @@ def _first_non_empty_str(series: pd.Series) -> str:
     return ""
 
 
-def _aspect_mean_sentiment_pl(mean_score: float) -> str:
-    if mean_score > 0.05:
-        return "Pozytywny (średnia etykieta dla wybranego aspektu)"
-    if mean_score < -0.05:
-        return "Negatywny (średnia etykieta dla wybranego aspektu)"
-    return "Neutralny / mieszany (średnia etykieta dla wybranego aspektu)"
-
-
-_LABEL_SET = frozenset(SENTIMENT_LABELS)
-
-
 def _classify_aspect_cell(value: Any) -> str | None:
-    """Map a cell to a canonical sentiment label, or None if unlabeled / invalid."""
     if value is None:
         return None
     if isinstance(value, float) and pd.isna(value):
@@ -50,35 +43,56 @@ def _classify_aspect_cell(value: Any) -> str | None:
     return None
 
 
+COLOR_STRONG_NEGATIVE = [198, 40, 40]  # Dark Red
+COLOR_MILD_NEGATIVE = [230, 106, 36]  # Orange
+COLOR_POSITIVE = [56, 142, 60]  # Green
+COLOR_NEUTRAL = [245, 180, 0]  # Yellow
+COLOR_NO_DATA = [158, 158, 158, 200]  # Gray (includes fixed alpha)
+
+ALPHA_BASE = 165
+ALPHA_MAX_ADDITION = 90
+SIGNAL_SATURATION_LIMIT = 10
+MAX_ALPHA = 255
+
+
 def _place_color_from_label_counts(n_pos: int, n_neg: int) -> list[int]:
-    """RGBA for one place from positive vs negative mentions (ABSA labels)."""
+    signal = n_pos + n_neg
+
+    if signal == 0:
+        return COLOR_NO_DATA.copy()
+
+    signal_factor = min(signal, SIGNAL_SATURATION_LIMIT) / SIGNAL_SATURATION_LIMIT
+    alpha = min(MAX_ALPHA, ALPHA_BASE + int(ALPHA_MAX_ADDITION * signal_factor))
+
+    if n_neg > n_pos:
+        is_strongly_negative = n_neg >= 2 * max(n_pos, 1)
+        base_color = (
+            COLOR_STRONG_NEGATIVE if is_strongly_negative else COLOR_MILD_NEGATIVE
+        )
+
+    elif n_pos > n_neg:
+        base_color = COLOR_POSITIVE
+
+    else:
+        base_color = COLOR_NEUTRAL
+
+    return [*base_color, alpha]
+
+
+def _hover_sentiment_label(n_pos: int, n_neg: int, n_neu: int, n_nm: int) -> str:
     signal = n_pos + n_neg
     if signal == 0:
-        return [158, 158, 158, 200]
-    alpha = min(255, 165 + int(90 * min(signal, 10) / 10))
-    if n_neg > n_pos:
-        if n_neg >= 2 * max(n_pos, 1):
-            return [198, 40, 40, alpha]
-        return [230, 106, 36, alpha]
+        if n_neu > 0:
+            return "Neutral"
+        return "No signal"
     if n_pos > n_neg:
-        return [56, 142, 60, alpha]
-    return [245, 180, 0, alpha]
+        return "Mostly positive"
+    if n_neg > n_pos:
+        return "Mostly negative"
+    return "Mixed"
 
 
-def _summary_pl_for_aspect_counts(
-    n_pos: int, n_neg: int, n_neu: int, n_nm: int
-) -> str:
-    parts = [
-        f"pozytywne: {n_pos}",
-        f"negatywne: {n_neg}",
-        f"neutralne: {n_neu}",
-        f"niewspomniane: {n_nm}",
-    ]
-    return ", ".join(parts)
-
-
-def _place_group_keys(df: pd.DataFrame) -> pd.Series:
-    """Stable key per venue: gmap_id when present, else rounded lat|lon."""
+def place_group_keys(df: pd.DataFrame) -> pd.Series:
     lat = pd.to_numeric(df["latitude"], errors="coerce")
     lon = pd.to_numeric(df["longitude"], errors="coerce")
     lat_r = lat.round(6).astype(str)
@@ -95,39 +109,26 @@ def _place_group_keys(df: pd.DataFrame) -> pd.Series:
     return out
 
 
+def radius_for_review_count(n: int, base: float = 35.0, scale: float = 18.0) -> float:
+    return base + scale * math.log2(max(n, 1) + 1)
+
+
 def aggregate_points_by_place(df: pd.DataFrame, aspect: str) -> pd.DataFrame:
-    """One scatter point per place; mean `aspect` for color; all reviews in `reviews_html`."""
     if df.empty:
         return df
+
     work = df.copy()
-    work["_place_key"] = _place_group_keys(work)
+    work["_place_key"] = place_group_keys(work)
     rows: list[dict[str, Any]] = []
 
-    for _key, g in work.groupby("_place_key", sort=False):
+    for key, g in work.groupby("_place_key", sort=False):
         g_lat = pd.to_numeric(g["latitude"], errors="coerce")
         g_lon = pd.to_numeric(g["longitude"], errors="coerce")
-        lat_m = float(g_lat.mean())
-        lon_m = float(g_lon.mean())
-        parts: list[str] = []
-        for i, (_, row) in enumerate(g.iterrows(), start=1):
-            raw = row.get("text", "")
-            t = html.escape(_truncate_text(str(raw) if raw is not None else ""))
-            if (
-                aspect != REPOSITORY_MAP_SYNTHETIC_ASPECT
-                and aspect in row.index
-                and pd.notna(row[aspect])
-            ):
-                av = html.escape(str(row[aspect]))
-                parts.append(
-                    f"<div style='margin-bottom:6px'><b>{i}.</b> {t}<br/><small>{html.escape(aspect)}: {av}</small></div>"
-                )
-            else:
-                parts.append(f"<div style='margin-bottom:6px'><b>{i}.</b> {t}</div>")
-        reviews_html = "".join(parts)
+        n_reviews = len(g)
+
         place_name = (
-            (_first_non_empty_str(g["name"]) if "name" in g.columns else "")
-            or "[Placeholder] Brak nazwy w pliku — po uzupełnieniu zbioru pojawi się tutaj nazwa miejsca."
-        )
+            _first_non_empty_str(g["name"]) if "name" in g.columns else ""
+        ) or "Unknown place"
         place_category = (
             _first_non_empty_str(g["category"]) if "category" in g.columns else ""
         ) or "—"
@@ -136,23 +137,23 @@ def aggregate_points_by_place(df: pd.DataFrame, aspect: str) -> pd.DataFrame:
         ) or "—"
 
         rec: dict[str, Any] = {
-            "latitude": lat_m,
-            "longitude": lon_m,
-            "n_reviews": int(len(g)),
-            "reviews_html": reviews_html,
+            "_place_key": key,
+            "latitude": float(g_lat.mean()),
+            "longitude": float(g_lon.mean()),
+            "n_reviews": n_reviews,
+            "_radius": radius_for_review_count(n_reviews),
             "place_name": place_name,
             "place_category": place_category,
             "gmap_id_display": gmap_str,
         }
+
         precomputed_color: list[int] | None = None
+        hover_sentiment = "—"
+
         if aspect in work.columns:
             if aspect == REPOSITORY_MAP_SYNTHETIC_ASPECT:
-                rec[aspect] = ""
                 precomputed_color = [158, 158, 158, 200]
-                rec["sentiment_summary"] = (
-                    "[Placeholder] Sentyment miejsca — dane pojawią się po podłączeniu "
-                    "zbioru z etykietami aspektów."
-                )
+                hover_sentiment = "—"
             else:
                 labels = [_classify_aspect_cell(v) for v in g[aspect]]
                 n_pos = sum(1 for x in labels if x == "positive")
@@ -162,84 +163,48 @@ def aggregate_points_by_place(df: pd.DataFrame, aspect: str) -> pd.DataFrame:
                 n_labeled = sum(1 for x in labels if x is not None)
 
                 if n_labeled > 0:
-                    rec[aspect] = _summary_pl_for_aspect_counts(
-                        n_pos, n_neg, n_neu, n_nm
-                    )
                     precomputed_color = _place_color_from_label_counts(n_pos, n_neg)
-                    sig = n_pos + n_neg
-                    if sig == 0:
-                        rec["sentiment_summary"] = (
-                            "Brak opinii z etykietą poz./neg. dla tego aspektu "
-                            "(tylko neutralne / niewspomniane)."
-                        )
-                    elif n_neg > n_pos:
-                        rec["sentiment_summary"] = "Dominują opinie negatywne dla aspektu."
-                    elif n_pos > n_neg:
-                        rec["sentiment_summary"] = "Dominują opinie pozytywne dla aspektu."
-                    else:
-                        rec["sentiment_summary"] = (
-                            "Równa liczba pozytywnych i negatywnych etykiet."
-                        )
+                    hover_sentiment = _hover_sentiment_label(n_pos, n_neg, n_neu, n_nm)
                 else:
                     sub = pd.to_numeric(g[aspect], errors="coerce")
                     mean_a = float(sub.mean()) if sub.notna().any() else float("nan")
-                    rec[aspect] = (
-                        f"{mean_a:.3f}"
-                        if not pd.isna(mean_a)
-                        else "[Placeholder] Brak wartości"
-                    )
                     if pd.isna(mean_a):
                         precomputed_color = [158, 158, 158, 200]
-                        rec["sentiment_summary"] = (
-                            "[Placeholder] Brak wartości sentymentu dla tego aspektu."
-                        )
+                        hover_sentiment = "No data"
                     else:
-                        rec["sentiment_summary"] = _aspect_mean_sentiment_pl(mean_a)
+                        hover_sentiment = (
+                            "Positive"
+                            if mean_a > 0.05
+                            else ("Negative" if mean_a < -0.05 else "Neutral / mixed")
+                        )
                         if mean_a > 0:
-                            intensity = min(
-                                255, int(100 + 155 * min(abs(mean_a), 1.0))
-                            )
+                            intensity = min(255, int(100 + 155 * min(abs(mean_a), 1.0)))
                             precomputed_color = [76, 175, 80, intensity]
                         elif mean_a < 0:
-                            intensity = min(
-                                255, int(100 + 155 * min(abs(mean_a), 1.0))
-                            )
+                            intensity = min(255, int(100 + 155 * min(abs(mean_a), 1.0)))
                             precomputed_color = [244, 67, 54, intensity]
                         else:
                             precomputed_color = [255, 193, 7, 100]
         else:
-            rec["sentiment_summary"] = (
-                "[Placeholder] Sentyment — wymagane kolumny aspektów w zbiorze."
-            )
             precomputed_color = [158, 158, 158, 200]
 
+        rec["_hover_sentiment"] = hover_sentiment
         if precomputed_color is not None:
             rec["color"] = precomputed_color
             rec["score"] = 0.0
 
-        rec["sentiment_profile_placeholder"] = (
-            "[Placeholder] Pełny profil sentymentu (wszystkie aspekty, trendy) — "
-            "do podpięcia w kolejnej iteracji zbioru."
-        )
         rows.append(rec)
+
     out = pd.DataFrame(rows)
     if not out.empty and "color" in out.columns:
         out.attrs["map_colors_precomputed"] = True
     return out
 
 
-def _truncate_text(s: str, max_len: int = 800) -> str:
-    s = s.strip()
-    if len(s) <= max_len:
-        return s
-    return s[: max_len - 1] + "…"
-
-
 def compute_aspect_scores(df: pd.DataFrame, aspect: str) -> pd.DataFrame:
     if aspect not in df.columns:
         gray = [128, 128, 128, 100]
         return df.assign(score=0.0, color=[gray] * len(df))
-
     scores = pd.to_numeric(df[aspect], errors="coerce").fillna(0.0).values
     colors: list[list[int]] = []
     for score in scores:
@@ -264,15 +229,20 @@ def create_scatter_layer(
         df_scored = df
     else:
         df_scored = compute_aspect_scores(df, aspect)
+
+    use_data_radius = "_radius" in df_scored.columns
     return pdk.Layer(
         "ScatterplotLayer",
         id=layer_id,
         data=df_scored,
         get_position=["longitude", "latitude"],
         get_color="color",
-        get_radius=50 * radius_scale,
+        get_radius="_radius" if use_data_radius else 50 * radius_scale,
+        radius_min_pixels=5,
+        radius_max_pixels=40,
         pickable=True,
         auto_highlight=True,
+        highlight_color=[255, 255, 255, 80],
     )
 
 
@@ -322,6 +292,40 @@ def create_hexagon_layer(
     )
 
 
+def _build_hover_tooltip(aspect: str) -> dict:
+    aspect_esc = html.escape(aspect)
+    is_synthetic = aspect == REPOSITORY_MAP_SYNTHETIC_ASPECT
+
+    if is_synthetic:
+        body = (
+            "<b>{place_name}</b><br/>"
+            "<span style='opacity:.85'>{place_category}</span><br/>"
+            "<small>Reviews: {n_reviews}</small>"
+        )
+    else:
+        body = (
+            "<b>{place_name}</b><br/>"
+            "<span style='opacity:.85'>{place_category}</span><br/>"
+            f"<small>{aspect_esc}: {{_hover_sentiment}}</small><br/>"
+            "<small>Reviews: {n_reviews}</small>"
+        )
+
+    return {
+        "html": (
+            f"<div style='max-width:280px;padding:4px;font-size:13px'>"
+            f"{body}"
+            f"<div style='margin-top:4px;font-size:11px;opacity:.6'>"
+            f"Click for details</div></div>"
+        ),
+        "style": {
+            "backgroundColor": "#1e1e1e",
+            "color": "white",
+            "borderRadius": "6px",
+            "padding": "8px 10px",
+        },
+    }
+
+
 def build_map(
     df: pd.DataFrame,
     aspect: str,
@@ -330,59 +334,35 @@ def build_map(
     point_size: float = 1.0,
     layer_id: str = "absa-points",
     scatter_df: pd.DataFrame | None = None,
-) -> pdk.Deck:
+) -> tuple[pdk.Deck, pd.DataFrame]:
     layers: list[pdk.Layer] = []
-    df_scatter = df
-    grouped_tooltip = False
+    df_scatter = pd.DataFrame()
+
     if viz_type in ("Points", "Combined"):
         df_scatter = (
             scatter_df
             if scatter_df is not None
             else aggregate_points_by_place(df, aspect)
         )
-        grouped_tooltip = not df_scatter.empty and "reviews_html" in df_scatter.columns
         layers.append(create_scatter_layer(df_scatter, aspect, point_size, layer_id))
+
     if viz_type in ("Heatmap", "Combined"):
         h = create_heatmap_layer(df, aspect)
         if h:
             layers.append(h)
+
     if viz_type in ("3D Hexagons", "Combined"):
         hx = create_hexagon_layer(df, aspect)
         if hx:
             layers.append(hx)
 
-    if grouped_tooltip:
-        if aspect == REPOSITORY_MAP_SYNTHETIC_ASPECT:
-            tooltip = {
-                "html": (
-                    "<div style='max-width:400px;max-height:300px;overflow:auto'>"
-                    "<small><b>Opinii:</b> {n_reviews}</small><br/><hr/>"
-                    "{reviews_html}</div>"
-                ),
-                "style": {"backgroundColor": "steelblue", "color": "white"},
-            }
-        else:
-            aspect_esc = html.escape(aspect)
-            tooltip = {
-                "html": (
-                    "<div style='max-width:400px;max-height:300px;overflow:auto'>"
-                    "<small><b>Opinii:</b> {n_reviews}</small><br/>"
-                    f"<b>Średnia ({aspect_esc}):</b> {{{aspect}}}<br/><hr/>"
-                    "{reviews_html}</div>"
-                ),
-                "style": {"backgroundColor": "steelblue", "color": "white"},
-            }
-    else:
-        tooltip = {
-            "html": f"<b>Review:</b> {{text}}<br/><b>{html.escape(aspect)}:</b> {{{aspect}}}",
-            "style": {"backgroundColor": "steelblue", "color": "white"},
-        }
-    # Carto dark basemap — no API key. Mapbox URLs require MAPBOX_API_KEY or the
-    # browser requests ...access_token=no-token and fails (often reported as CORS).
-    return pdk.Deck(
+    tooltip = _build_hover_tooltip(aspect)
+
+    deck = pdk.Deck(
         layers=layers,
         initial_view_state=view_state,
         map_style="dark",
         map_provider="carto",
         tooltip=tooltip,
     )
+    return deck, df_scatter

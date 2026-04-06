@@ -77,9 +77,8 @@ SENTIMENT_LABELS = [e.value for e in SentimentLabel]
 
 
 class ModelType(Enum):
-    ZERO_SHOT = "zero_shot"
-    LLM = "llm"
-    FINE_TUNED = "fine_tuned"
+    FINE_TUNED_BERT = "fine_tuned_bert"
+    FINE_TUNED_DISTILBERT = "fine_tuned_distilbert"
 
 
 RESULTS_REPOSITORY_DIR = "statics/results_repository"

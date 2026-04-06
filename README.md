@@ -103,10 +103,10 @@ streamlit run app.py
 Aplikacja uruchomi się domyślnie pod adresem: **http://localhost:8501**
 
 **Dostępne strony w aplikacji:**
-- 🗺️ **Home** — główna mapa z wizualizacją sentymentu
-- 📋 **Data Table** — podgląd danych w formie tabeli
-- 🏷️ **Label Dataset** — narzędzie do etykietowania danych
-- 📦 **Repository** — repozytorium wyników
+- **Home** — główna mapa z wizualizacją sentymentu
+- **Data Table** — podgląd danych w formie tabeli
+- **Label Dataset** — narzędzie do etykietowania danych
+- **Repository** — repozytorium wyników
 
 ---
 
@@ -148,22 +148,6 @@ jupyter notebook
    - `TRAIN_ASPECTS` — lista 8 aspektów do analizy
    - `SENTIMENT_LABELS` — etykiety sentymentu (positive, neutral, negative, notmentioned)
    - `ModelType` — enum z typami modeli (FINE_TUNED, ZERO_SHOT, LLM)
-
-3. **Predykcja** — Funkcja `predict_dataset()` z `predictions/predict_dataset.py` obsługuje wszystkie 3 metody:
-```python
-   from predictions.predict_dataset import predict_dataset
-   from config.global_config import ModelType
-   
-   # Fine-tuned BERT
-   results = predict_dataset(df, ModelType.FINE_TUNED)
-   
-   # Zero-shot
-   results = predict_dataset(df, ModelType.ZERO_SHOT)
-   
-   # LLM (wymaga OPENAI_API_KEY)
-   results = predict_dataset(df, ModelType.LLM)
-   ```
-
 ---
 
 ## Struktura projektu

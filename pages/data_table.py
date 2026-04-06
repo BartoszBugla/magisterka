@@ -3,6 +3,7 @@ import json
 import pandas as pd
 import streamlit as st
 
+from application.notifications import notify
 from application.results_repository import repository as repo
 
 st.title("Data table")
@@ -35,4 +36,4 @@ try:
     st.caption(f"Loaded {len(df)} row(s); preview limit is {max_rows}.")
     st.dataframe(df, use_container_width=True, height=480)
 except Exception as e:
-    st.error(f"Could not read CSV: {e}")
+    notify.error("Could not read CSV", exception=e)

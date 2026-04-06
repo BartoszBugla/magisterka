@@ -1,5 +1,3 @@
-"""Filesystem-backed CSV results repository."""
-
 from __future__ import annotations
 
 import json
