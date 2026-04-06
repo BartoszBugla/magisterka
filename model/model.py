@@ -78,9 +78,15 @@ class ABSAModel(nn.Module):
         logits = torch.stack([clf(pooled) for clf in self.classifiers], dim=1)
 
         if labels is not None:
-            w = self.class_weights.to(logits.device) if self.class_weights is not None else None
+            w = (
+                self.class_weights.to(logits.device)
+                if self.class_weights is not None
+                else None
+            )
             loss = F.cross_entropy(
-                logits.view(-1, self.num_sentiments), labels.view(-1), weight=w,
+                logits.view(-1, self.num_sentiments),
+                labels.view(-1),
+                weight=w,
             )
             return {"loss": loss, "logits": logits}
 

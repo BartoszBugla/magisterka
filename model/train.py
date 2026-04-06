@@ -44,9 +44,8 @@ def compute_class_weights(labels_array: np.ndarray) -> torch.Tensor:
     return torch.tensor(weights, dtype=torch.float32)
 
 
-def train_model(model, train_dataset, val_dataset, output_dir="./results"):
+def train_model(model, train_dataset, val_dataset):
     training_args = TrainingArguments(
-        output_dir=output_dir,
         eval_strategy="epoch",
         save_strategy="epoch",
         learning_rate=5e-5,
