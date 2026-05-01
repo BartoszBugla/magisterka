@@ -8,6 +8,31 @@ from transformers import PreTrainedTokenizerBase
 from config.global_config import TRAIN_ASPECTS, SENTIMENT_LABELS
 
 
+def coerce_text_for_tokenizer(value) -> str:
+    """Turn a dataframe cell into a string safe for ``tokenizer(...)``."""
+    if value is None:
+        return " "
+    try:
+        if pd.isna(value):
+            return " "
+    except (TypeError, ValueError):
+        pass
+    s = str(value).strip()
+    if not s or s.lower() in ("nan", "none", "<na>"):
+        return " "
+    return s
+
+
+def _canonical_sentiment_label(raw) -> str:
+    """Map CSV strings to keys in ``SENTIMENT_LABELS`` (case/spacing tolerant)."""
+    if pd.isna(raw):
+        return "notmentioned"
+    key = str(raw).strip().lower().replace(" ", "").replace("_", "")
+    if key in SENTIMENT_LABELS:
+        return key
+    return "notmentioned"
+
+
 class ABSADataset(Dataset):
     def __init__(
         self,
@@ -19,7 +44,10 @@ class ABSADataset(Dataset):
 
         print("Tokenizer step:")
 
-        texts = list(dataframe["text"].values)
+        if "text" not in dataframe.columns:
+            raise KeyError("DataFrame must contain a 'text' column for ABSADataset")
+
+        texts = [coerce_text_for_tokenizer(v) for v in dataframe["text"].values]
 
         self.inputs = tokenizer(
             texts,
@@ -38,10 +66,8 @@ class ABSADataset(Dataset):
         for _, row in dataframe.iterrows():
             row_labels = []
             for aspect in TRAIN_ASPECTS:
-                sentiment = row[aspect]
-                if pd.isna(sentiment):
-                    sentiment = "notmentioned"
-                idx = sentiment_to_idx.get(sentiment, sentiment_to_idx["notmentioned"])
+                sentiment = _canonical_sentiment_label(row[aspect])
+                idx = sentiment_to_idx[sentiment]
                 row_labels.append(idx)
             labels.append(row_labels)
 

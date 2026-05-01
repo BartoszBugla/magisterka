@@ -1,5 +1,6 @@
 import pandas as pd
 import streamlit as st
+from config.global_config import ModelType
 from predictions.predict_dataset import models, predict_dataset
 
 from application.dataset_types import DatasetType
@@ -12,9 +13,40 @@ from application.label_dataset import (
 from application.notifications import notify
 from application.results_repository import EntryMetadata, repository as repo
 
+t = {
+    "label_dataset_invalid_filename": "Nieprawidłowa nazwa pliku",
+    "label_dataset_invalid_filename_details": "Nazwa pliku musi kończyć się na `.csv`.",
+    "label_dataset_invalid_filename_path_separator": "Nazwa pliku nie może zawierać separatorów ścieżki.",
+    "label_dataset_file_exists": "Plik już istnieje",
+    "label_dataset_file_exists_details": lambda name: f"Plik `{name}` już istnieje w repozytorium.",
+    "label_dataset_validation_failed": "Walidacja nie powiodła się",
+    "label_dataset_validation_failed_details": lambda err: f"Walidacja nie powiodła się: {err}",
+    "label_dataset_labelling_failed": "Etykietowanie nie powiodło się",
+    "label_dataset_title": "Etykietowanie zbioru danych",
+    "label_dataset_no_candidates_info": "Brak **oczyszczonych** lub **surowych** zbiorów danych opinii w repozytorium. ",
+    "label_dataset_run_labelling": "Uruchom etykietowanie",
+    "label_dataset_result": "Wynik etykietowania",
+    "label_dataset_save_as": "Zapisz jako (nazwa pliku)",
+    "label_dataset_save_to_repository": "Zapisz do repozytorium",
+    "label_dataset_saved": lambda name: f"Zapisano `{name}` jako LABELLED_AI",
+    "label_dataset_model": "Model",
+    "label_dataset_source_csv": "Zbiór danych źródłowy",
+    "label_dataset_num_rows": "Liczba wierszy do załadowania",
+}
+
 SS_SOURCE = "label_dataset_source_csv"
 SS_RESULT = "label_dataset_result_df"
 SS_MODEL = "label_dataset_model_type"
+
+_MODEL_LABELS_PL: dict[ModelType, str] = {
+    ModelType.FINE_TUNED_BERT: "BERT (fine-tuned)",
+    ModelType.FINE_TUNED_DISTILBERT: "DistilBERT (fine-tuned)",
+    ModelType.TFIDF_LSA: "TF-IDF + LSA + regresja logistyczna",
+}
+
+
+def _model_label(m: ModelType) -> str:
+    return _MODEL_LABELS_PL.get(m, m.value)
 
 
 def init_session_state():
@@ -35,22 +67,21 @@ def clear_session_state():
 
 
 def render_labelling_form(candidates: list, by_name: dict):
-    """Render the labelling configuration form and return selected values."""
     model_type = st.selectbox(
-        "Model",
+        t["label_dataset_model"],
         options=list(models.keys()),
-        # format_func=lambda m: models.keys()[m],
+        format_func=_model_label,
     )
 
     source_csv = st.selectbox(
-        "Source dataset",
+        t["label_dataset_source_csv"],
         options=list(by_name),
         format_func=lambda fn: f"{fn} — {by_name[fn].dataset_type.label_pl}",
     )
 
     max_rows = len(load_source_dataframe(repo, source_csv)) if source_csv else 1000
     num_rows = st.number_input(
-        "Number of rows to load",
+        t["label_dataset_num_rows"],
         min_value=10,
         max_value=max_rows,
         value=min(500, max_rows),
@@ -61,70 +92,74 @@ def render_labelling_form(candidates: list, by_name: dict):
 
 
 def run_labelling_process(source_csv: str, model_type, num_rows: int):
-    """Execute the labelling process with progress tracking."""
     df = load_source_dataframe(repo, source_csv).head(num_rows)
     progress = st.progress(0.0)
     status = st.empty()
 
     def on_progress(done: int, total: int) -> None:
         progress.progress(done / total if total else 0.0)
-        status.text(f"{done} / {total} rows")
+        status.text(f"{done} / {total} wierszy")
 
     result = predict_dataset(df, model_type, on_progress=on_progress)
     progress.progress(1.0)
-    status.text("Done.")
+    status.text("Gotowe.")
 
     return result
 
 
 def render_result_section(result_df: pd.DataFrame):
-    """Display labelling results and model info."""
     st.divider()
-    st.subheader("Result")
+    st.subheader(t["label_dataset_result"])
 
     if st.session_state[SS_MODEL] is not None:
-        st.caption(f"Model used: **{models[st.session_state[SS_MODEL]]}**")
+        st.caption(f"Użyty model: **{_model_label(st.session_state[SS_MODEL])}**")
 
     st.dataframe(result_df.head(50), use_container_width=True)
 
 
 def render_save_form(result_df: pd.DataFrame):
-    """Render the save-to-repository form."""
     src_name = st.session_state[SS_SOURCE] or ""
     default_name = (
         default_labelled_filename(src_name) if src_name else "dataset_labelled.csv"
     )
 
-    out_name = st.text_input("Save as (filename)", value=default_name)
+    out_name = st.text_input(t["label_dataset_save_as"], value=default_name)
 
-    if st.button("Save to repository"):
+    if st.button(t["label_dataset_save_to_repository"]):
         save_result(result_df, out_name, src_name)
 
 
 def save_result(result_df: pd.DataFrame, out_name: str, src_name: str):
-    """Validate and save the labelled dataset to repository."""
     name = (out_name or "").strip()
 
     if not name.endswith(".csv"):
-        notify.error("Invalid filename", details="Filename must end with `.csv`.")
+        notify.error(
+            t["label_dataset_invalid_filename"],
+            details=t["label_dataset_invalid_filename_details"],
+        )
         return
 
     if "/" in name or "\\" in name:
         notify.error(
-            "Invalid filename", details="Filename cannot contain path separators."
+            t["label_dataset_invalid_filename"],
+            details=t["label_dataset_invalid_filename_path_separator"],
         )
         return
 
     if repo.exists(name):
         notify.error(
-            "File exists", details=f"`{name}` already exists in the repository."
+            t["label_dataset_file_exists"],
+            details=t["label_dataset_file_exists_details"](name),
         )
         return
 
     raw = result_df.to_csv(index=False).encode("utf-8")
     err = validate(raw, DatasetType.LABELLED_AI)
     if err:
-        notify.error("Validation failed", details=err)
+        notify.error(
+            t["label_dataset_validation_failed"],
+            details=t["label_dataset_validation_failed_details"](err),
+        )
         return
 
     used_model = st.session_state[SS_MODEL]
@@ -135,31 +170,28 @@ def save_result(result_df: pd.DataFrame, out_name: str, src_name: str):
             csv_filename=name,
             dataset_type=DatasetType.LABELLED_AI,
             model_type=used_model,
-            notes=f"Labelled from {src_name}",
+            notes=f"Etykietowane z {src_name}",
         ),
     )
-    notify.success(f"Saved `{name}` as LABELLED_AI")
+    notify.success(t["label_dataset_saved"](name))
     clear_session_state()
     st.rerun()
 
 
 def main():
-    st.title("Label dataset")
+    st.title(t["label_dataset_title"])
     init_session_state()
 
     candidates = list_labelable_entries()
     if not candidates:
-        st.info(
-            "No **cleaned** or **raw reviews** datasets in the repository. "
-            "Upload one on the **Repository** page."
-        )
+        st.info(t["label_dataset_no_candidates_info"])
         st.stop()
 
     by_name = {m.csv_filename: m for m in candidates}
 
     model_type, source_csv, num_rows = render_labelling_form(candidates, by_name)
 
-    if st.button("Run labelling", type="primary"):
+    if st.button(t["label_dataset_run_labelling"], type="primary"):
         try:
             result = run_labelling_process(source_csv, model_type, num_rows)
             st.session_state[SS_SOURCE] = source_csv
@@ -167,7 +199,7 @@ def main():
             st.session_state[SS_MODEL] = model_type
             st.rerun()
         except Exception as e:
-            notify.error("Labelling failed", exception=e)
+            notify.error(t["label_dataset_labelling_failed"], exception=e)
 
     result_df: pd.DataFrame | None = st.session_state[SS_RESULT]
     if result_df is None:

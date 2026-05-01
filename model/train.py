@@ -46,19 +46,22 @@ def compute_class_weights(labels_array: np.ndarray) -> torch.Tensor:
 
 def train_model(model, train_dataset, val_dataset):
     training_args = TrainingArguments(
+        output_dir="./absa_results",
         eval_strategy="epoch",
         save_strategy="epoch",
-        learning_rate=5e-5,
-        num_train_epochs=6,
+        learning_rate=3e-5,
+        num_train_epochs=5,
         per_device_train_batch_size=32,
-        weight_decay=0.01,
-        lr_scheduler_type="constant",
+        weight_decay=0.05,
+        lr_scheduler_type="linear",
+        warmup_ratio=0.1,
         max_grad_norm=1.0,
         logging_steps=10,
         load_best_model_at_end=True,
-        metric_for_best_model="sentiment_f1",
+        metric_for_best_model="macro_f1",
         greater_is_better=True,
         remove_unused_columns=True,
+        save_total_limit=2,
     )
 
     trainer = Trainer(

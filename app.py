@@ -12,20 +12,22 @@ st.set_page_config(
 )
 
 pages = [
-    st.Page(str(_ROOT / "pages" / "home.py"), title="Home", icon=":material/map:"),
+    st.Page(
+        str(_ROOT / "pages" / "home.py"), title="Strona główna", icon=":material/map:"
+    ),
     st.Page(
         str(_ROOT / "pages" / "data_table.py"),
-        title="Data table",
+        title="Tabela danych",
         icon=":material/table_chart:",
     ),
     st.Page(
         str(_ROOT / "pages" / "label_dataset.py"),
-        title="Label dataset",
+        title="Etykietowanie danych",
         icon=":material/label:",
     ),
     st.Page(
         str(_ROOT / "pages" / "repository.py"),
-        title="Repository",
+        title="Repozytorium",
         icon=":material/inventory_2:",
     ),
 ]

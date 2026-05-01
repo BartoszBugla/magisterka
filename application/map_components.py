@@ -12,6 +12,28 @@ from config.global_config import SENTIMENT_LABELS
 
 _LABEL_SET = frozenset(SENTIMENT_LABELS)
 
+t = {
+    "map_component_first_non_empty_str": "Unknown place",
+    "map_component_place_category": "—",
+    "map_component_gmap_id_display": "—",
+    "map_component_hover_sentiment": lambda sentiment: f"— {sentiment}",
+    "map_component_no_data": "No data",
+    "map_component_positive": "Positive",
+    "map_component_negative": "Negative",
+    "map_component_neutral": "Neutral",
+    "map_component_mixed": "Mixed",
+    "map_component_mostly_positive": "Mostly positive",
+    "map_component_mostly_negative": "Mostly negative",
+    "map_component_click_for_details": "Kliknij dla szczegółów",
+    "map_component_reviews": lambda n: f"Opinie: {n}",
+    "map_component_num_reviews": lambda n: f"Opinie: {n}",
+    "map_component_no_signal": "No signal",
+    "map_component_neutral_mixed": "Neutral / mixed",
+    "map_component_positive_negative": "Positive / negative",
+    "map_component_neutral_mixed_positive_negative": "Neutral / mixed / positive / negative",
+    "map_component_positive_negative_neutral": "Positive / negative / neutral",
+}
+
 
 def _first_non_empty_str(series: pd.Series) -> str:
     for v in series:
@@ -47,7 +69,9 @@ COLOR_STRONG_NEGATIVE = [198, 40, 40]  # Dark Red
 COLOR_MILD_NEGATIVE = [230, 106, 36]  # Orange
 COLOR_POSITIVE = [56, 142, 60]  # Green
 COLOR_NEUTRAL = [245, 180, 0]  # Yellow
+COLOR_NEGATIVE = [244, 67, 54]
 COLOR_NO_DATA = [158, 158, 158, 200]  # Gray (includes fixed alpha)
+COLOR_GRAY = [158, 158, 158]
 
 ALPHA_BASE = 165
 ALPHA_MAX_ADDITION = 90
@@ -83,13 +107,13 @@ def _hover_sentiment_label(n_pos: int, n_neg: int, n_neu: int, n_nm: int) -> str
     signal = n_pos + n_neg
     if signal == 0:
         if n_neu > 0:
-            return "Neutral"
-        return "No signal"
+            return t["map_component_neutral"]
+        return t["map_component_no_signal"]
     if n_pos > n_neg:
-        return "Mostly positive"
+        return t["map_component_mostly_positive"]
     if n_neg > n_pos:
-        return "Mostly negative"
-    return "Mixed"
+        return t["map_component_mostly_negative"]
+    return t["map_component_mixed"]
 
 
 def place_group_keys(df: pd.DataFrame) -> pd.Series:
@@ -170,12 +194,18 @@ def aggregate_points_by_place(df: pd.DataFrame, aspect: str) -> pd.DataFrame:
                     mean_a = float(sub.mean()) if sub.notna().any() else float("nan")
                     if pd.isna(mean_a):
                         precomputed_color = [158, 158, 158, 200]
-                        hover_sentiment = "No data"
+                        hover_sentiment = t["map_component_no_data"]
                     else:
                         hover_sentiment = (
-                            "Positive"
+                            t["map_component_positive"]
                             if mean_a > 0.05
-                            else ("Negative" if mean_a < -0.05 else "Neutral / mixed")
+                            else (
+                                t["map_component_negative"]
+                                if mean_a < -0.05
+                                else t["map_component_neutral"]
+                                + " "
+                                + t["map_component_mixed"]
+                            )
                         )
                         if mean_a > 0:
                             intensity = min(255, int(100 + 155 * min(abs(mean_a), 1.0)))
@@ -203,19 +233,21 @@ def aggregate_points_by_place(df: pd.DataFrame, aspect: str) -> pd.DataFrame:
 
 def compute_aspect_scores(df: pd.DataFrame, aspect: str) -> pd.DataFrame:
     if aspect not in df.columns:
-        gray = [128, 128, 128, 100]
-        return df.assign(score=0.0, color=[gray] * len(df))
+        return df.assign(score=0.0, color=[COLOR_GRAY] * len(df))
+
     scores = pd.to_numeric(df[aspect], errors="coerce").fillna(0.0).values
+
     colors: list[list[int]] = []
+
     for score in scores:
         if score > 0:
             intensity = min(255, int(100 + 155 * abs(score)))
-            colors.append([76, 175, 80, intensity])
+            colors.append([COLOR_POSITIVE, intensity])
         elif score < 0:
             intensity = min(255, int(100 + 155 * abs(score)))
-            colors.append([244, 67, 54, intensity])
+            colors.append([COLOR_NEGATIVE, intensity])
         else:
-            colors.append([255, 193, 7, 100])
+            colors.append([COLOR_NEUTRAL, 100])
     return df.assign(score=scores, color=colors)
 
 
@@ -300,14 +332,14 @@ def _build_hover_tooltip(aspect: str) -> dict:
         body = (
             "<b>{place_name}</b><br/>"
             "<span style='opacity:.85'>{place_category}</span><br/>"
-            "<small>Reviews: {n_reviews}</small>"
+            f"<small>{t['map_component_reviews']('{n_reviews}')}</small>"
         )
     else:
         body = (
             "<b>{place_name}</b><br/>"
             "<span style='opacity:.85'>{place_category}</span><br/>"
-            f"<small>{aspect_esc}: {{_hover_sentiment}}</small><br/>"
-            "<small>Reviews: {n_reviews}</small>"
+            f"<small>{aspect_esc}: {t['map_component_hover_sentiment']('{_hover_sentiment}')}</small><br/>"
+            f"<small>{t['map_component_num_reviews']('{n_reviews}')}</small>"
         )
 
     return {
@@ -315,7 +347,7 @@ def _build_hover_tooltip(aspect: str) -> dict:
             f"<div style='max-width:280px;padding:4px;font-size:13px'>"
             f"{body}"
             f"<div style='margin-top:4px;font-size:11px;opacity:.6'>"
-            f"Click for details</div></div>"
+            f"{t['map_component_click_for_details']}</div></div>"
         ),
         "style": {
             "backgroundColor": "#1e1e1e",
@@ -329,32 +361,13 @@ def _build_hover_tooltip(aspect: str) -> dict:
 def build_map(
     df: pd.DataFrame,
     aspect: str,
-    viz_type: str,
     view_state: pdk.ViewState,
-    point_size: float = 1.0,
-    layer_id: str = "absa-points",
-    scatter_df: pd.DataFrame | None = None,
 ) -> tuple[pdk.Deck, pd.DataFrame]:
     layers: list[pdk.Layer] = []
     df_scatter = pd.DataFrame()
 
-    if viz_type in ("Points", "Combined"):
-        df_scatter = (
-            scatter_df
-            if scatter_df is not None
-            else aggregate_points_by_place(df, aspect)
-        )
-        layers.append(create_scatter_layer(df_scatter, aspect, point_size, layer_id))
-
-    if viz_type in ("Heatmap", "Combined"):
-        h = create_heatmap_layer(df, aspect)
-        if h:
-            layers.append(h)
-
-    if viz_type in ("3D Hexagons", "Combined"):
-        hx = create_hexagon_layer(df, aspect)
-        if hx:
-            layers.append(hx)
+    df_scatter = aggregate_points_by_place(df, aspect)
+    layers.append(create_scatter_layer(df_scatter, aspect))
 
     tooltip = _build_hover_tooltip(aspect)
 

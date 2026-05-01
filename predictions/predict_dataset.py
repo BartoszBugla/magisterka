@@ -3,9 +3,11 @@ from __future__ import annotations
 from collections.abc import Callable
 
 import pandas as pd
-from config.global_config import TRAIN_ASPECTS, ModelType
+from config.global_config import SentimentLabel, TRAIN_ASPECTS, ModelType
 
 from predictions.prediction_fine_tuned import FineTunedModel
+from predictions.prediction_tfidf_lsa import TfidfLsaModel
+from predictions.prediction_tfidf_lsa_rf import TfidfLsaRfModel
 
 
 PROGRESS_BAR_STEP = 10
@@ -20,6 +22,12 @@ models = {
         aspects=TRAIN_ASPECTS,
         local_model_path="saved_models/distilbert-base-uncased_absa.pt",
     ),
+    ModelType.TFIDF_LSA: lambda: TfidfLsaModel(aspects=TRAIN_ASPECTS),
+    ModelType.FINE_TUNED_DISTILBERT_SST: lambda: FineTunedModel(
+        aspects=TRAIN_ASPECTS,
+        local_model_path="saved_models/distilbert-base-uncased-finetuned-sst-2-english_absa.pt",
+    ),
+    ModelType.TFIDF_LSA_RF: lambda: TfidfLsaRfModel(aspects=TRAIN_ASPECTS),
 }
 
 model_cache = {}
@@ -52,8 +60,9 @@ def predict_dataset(
         text = row["text"]
 
         if not isinstance(text, str) or not text.strip():
+            nm = SentimentLabel.NOTMENTIONED.value
             for aspect in model.aspects:
-                dataset.at[index, aspect] = None
+                dataset.at[index, aspect] = nm
             done += 1
             continue
 

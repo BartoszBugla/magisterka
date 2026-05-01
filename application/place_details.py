@@ -12,6 +12,10 @@ from config.global_config import SENTIMENT_LABELS, SentimentLabel
 
 METADATA_DIR = Path("statics/datasets")
 
+t = {
+    "place_details_avg_rating": "Średnia ocena",
+}
+
 _SENTIMENT_COLORS: dict[str, str] = {
     SentimentLabel.POSITIVE: "#4CAF50",
     SentimentLabel.NEUTRAL: "#FFC107",
@@ -153,12 +157,13 @@ def _render_place_dialog_header(
 ) -> None:
     st.subheader(name)
     col1, col2, col3 = st.columns(3)
-    col1.metric("Category", category)
-    col2.metric("Reviews", len(reviews))
+    col1.metric("Kategoria", category)
+
+    col2.metric("Opinie", len(reviews))
     if "rating" in reviews.columns:
         avg = pd.to_numeric(reviews["rating"], errors="coerce").mean()
         if pd.notna(avg):
-            col3.metric("Avg. Rating", f"{avg:.1f} / 5")
+            col3.metric(t["place_details_avg_rating"], f"{avg:.1f} / 5")
 
 
 def _dialog_sentiment_profile_aspect(
@@ -168,7 +173,7 @@ def _dialog_sentiment_profile_aspect(
 ) -> str:
     st.divider()
     profile_aspect = st.selectbox(
-        "Sentiment profile — aspect",
+        "Profil sentymentu — aspekt",
         available_aspects,
         index=(
             available_aspects.index(selected_aspect)
@@ -188,13 +193,13 @@ def _dialog_review_filter_widgets(
     fc1, fc2 = st.columns(2)
     with fc1:
         sent_filter = st.selectbox(
-            "Filter by sentiment",
+            "Filtruj po sentymentach",
             ["All"] + [_SENTIMENT_DISPLAY[s] for s in SENTIMENT_LABELS],
             key="dlg_sent_filter",
         )
     with fc2:
         asp_filter = st.selectbox(
-            "Aspect for filter",
+            "Aspekt dla filtru",
             available_aspects,
             index=(
                 available_aspects.index(profile_aspect)
@@ -222,7 +227,7 @@ def _render_dialog_review_card(
 ) -> None:
     text = str(row.get("text", "")) if pd.notna(row.get("text")) else ""
     rating_val = row.get("rating")
-    rating_str = f"Rating: {rating_val}" if pd.notna(rating_val) else ""
+    rating_str = f"Ocena: {rating_val}" if pd.notna(rating_val) else ""
     header = f"**#{idx}**"
     if rating_str:
         header += f" &nbsp; {rating_str}"
@@ -244,9 +249,9 @@ def _render_dialog_review_card(
 def _render_dialog_review_list(
     display: pd.DataFrame, available_aspects: list[str], total: int
 ) -> None:
-    st.caption(f"Showing {len(display)} of {total} reviews")
+    st.caption(f"Pokazywanie {len(display)} z {total} opinii")
     if display.empty:
-        st.info("No reviews match the selected filters.")
+        st.info("Brak opinii pasujących do wybranych filtrów.")
         return
     for idx, (_, row) in enumerate(display.iterrows(), start=1):
         _render_dialog_review_card(idx, row, available_aspects)

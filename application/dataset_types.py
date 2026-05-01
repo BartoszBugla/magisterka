@@ -69,7 +69,7 @@ _SCHEMAS: dict[DatasetType, DatasetSchema] = {
     ),
     DatasetType.LABELLED_AI: DatasetSchema(
         dataset_type=DatasetType.LABELLED_AI,
-        label_pl="Olabelowane — silnik AI",
+        label_pl="Oetykowane — silnik AI",
         description=(
             "Opinie z etykietami aspektów nadanymi przez model AI. "
             "Kolumny aspektów są dynamiczne."
@@ -79,7 +79,7 @@ _SCHEMAS: dict[DatasetType, DatasetSchema] = {
     ),
     DatasetType.LABELLED_HUMAN: DatasetSchema(
         dataset_type=DatasetType.LABELLED_HUMAN,
-        label_pl="Olabelowane — człowiek",
+        label_pl="Oetykowane — człowiek",
         description=(
             "Opinie z etykietami aspektów nadanymi ręcznie przez annotatora. "
             "Kolumny aspektów są dynamiczne."

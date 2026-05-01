@@ -25,13 +25,13 @@ from config.global_config import TRAIN_ASPECTS
 
 
 def _render_dataset_gallery(entries: list[EntryMetadata]) -> str | None:
-    st.subheader("Select a dataset")
+    st.subheader("Wybór zbioru danych")
 
     labelled, other = group_entries_by_type(entries)
     selected: str | None = None
 
     if labelled:
-        st.markdown("##### Labelled datasets")
+        st.markdown("##### Zbiory danych etykietowane")
         cols = st.columns(2)
         for i, entry in enumerate(labelled):
             with cols[i % 2]:
@@ -40,7 +40,7 @@ def _render_dataset_gallery(entries: list[EntryMetadata]) -> str | None:
                     selected = entry.csv_filename
 
     if other:
-        st.markdown("##### Other datasets")
+        st.markdown("##### Zbiory danych nieetykowane")
         cols = st.columns(2)
         for i, entry in enumerate(other):
             with cols[i % 2]:
@@ -59,28 +59,27 @@ def _load_dataset(csv_filename: str) -> pd.DataFrame | None:
     try:
         return pd.read_csv(repo.get_csv_path(csv_filename))
     except Exception as e:
-        notify.error("Could not load CSV", exception=e)
+        notify.error("Nie udało się załadować CSV", exception=e)
         return None
 
 
 def _validate_coords(df: pd.DataFrame) -> pd.DataFrame | None:
     for col in ("latitude", "longitude"):
         if col not in df.columns:
-            notify.error(f"Missing required column: `{col}`")
+            notify.error(f"Brak wymaganego kolumny: `{col}`")
             return None
     lat = pd.to_numeric(df["latitude"], errors="coerce")
     lon = pd.to_numeric(df["longitude"], errors="coerce")
     ok = lat.notna() & lon.notna()
     valid = df.loc[ok].copy()
     if valid.empty:
-        notify.warning("No rows with valid coordinates")
+        notify.warning("Brak wierszy z poprawnymi współrzędnymi")
         return None
     return valid
 
 
-@st.dialog("Place Details", width="large")
+@st.dialog("Szczegóły miejsca", width="large")
 def _open_place_dialog() -> None:
-    """Modal reading selection context from session state."""
     place_info = st.session_state.get("_sel_place")
     reviews = st.session_state.get("_sel_reviews")
     metadata = st.session_state.get("_sel_metadata")
@@ -88,7 +87,7 @@ def _open_place_dialog() -> None:
     aspects = st.session_state.get("_sel_aspects", TRAIN_ASPECTS)
 
     if place_info is None or reviews is None:
-        notify.warning("No place selected")
+        notify.warning("Brak miejsca wybranego")
         return
 
     render_place_dialog(place_info, reviews, metadata, aspect, aspects)
@@ -141,15 +140,15 @@ def _handle_selection(
 def _render_map_view(csv_filename: str, entry_meta: EntryMetadata) -> None:
     col_title, col_back = st.columns([5, 1])
     with col_title:
-        st.subheader(f"Map: {csv_filename}")
+        st.subheader(f"Mapa: {csv_filename}")
     with col_back:
-        if st.button("← Back", use_container_width=True):
+        if st.button("← Powrót", use_container_width=True):
             st.session_state.pop("selected_dataset", None)
             st.rerun()
 
     df_raw = _load_dataset(csv_filename)
     if df_raw is None or df_raw.empty:
-        notify.warning("This dataset has no rows")
+        notify.warning("Ten zbiór danych nie ma wierszy")
         return
 
     prepared = _validate_coords(df_raw)
@@ -157,18 +156,18 @@ def _render_map_view(csv_filename: str, entry_meta: EntryMetadata) -> None:
         return
 
     metadata_df = pd.DataFrame()
-    meta_files = list_metadata_files()
-    if meta_files:
-        with st.expander("Metadata file (optional — enriches place details)"):
-            meta_choice = st.selectbox(
-                "Metadata CSV",
-                options=["None"] + [p.name for p in meta_files],
-                key="meta_csv_select",
-            )
-            if meta_choice != "None":
-                matched = [p for p in meta_files if p.name == meta_choice]
-                if matched:
-                    metadata_df = load_metadata(str(matched[0]))
+    # meta_files = list_metadata_files()
+    # if meta_files:
+    #     with st.expander("Metadata file (optional — enriches place details)"):
+    #         meta_choice = st.selectbox(
+    #             "Metadata CSV",
+    #             options=["None"] + [p.name for p in meta_files],
+    #             key="meta_csv_select",
+    #         )
+    #         if meta_choice != "None":
+    #             matched = [p for p in meta_files if p.name == meta_choice]
+    #             if matched:
+    #                 metadata_df = load_metadata(str(matched[0]))
 
     is_labelled = entry_meta.dataset_type in (
         DatasetType.LABELLED_AI,
@@ -180,7 +179,7 @@ def _render_map_view(csv_filename: str, entry_meta: EntryMetadata) -> None:
 
     if is_labelled:
         aspect = st.selectbox(
-            "Aspect (map colors follow this column)",
+            "Wybór aspektu",
             aspects,
         )
 
@@ -198,9 +197,7 @@ def _render_map_view(csv_filename: str, entry_meta: EntryMetadata) -> None:
     deck, scatter_df = build_map(
         prepared,
         aspect=aspect,
-        viz_type="Points",
         view_state=view,
-        point_size=1.0,
     )
 
     event = st.pydeck_chart(
@@ -214,12 +211,12 @@ def _render_map_view(csv_filename: str, entry_meta: EntryMetadata) -> None:
     _handle_selection(event, prepared, place_keys, metadata_df, aspect, aspects)
 
 
-st.title("ABSA Map Explorer")
+st.title("Eksplorator mapy aspektowanej analizy sentymentu (ABSA)")
 
 entries = repo.list_entries()
 if not entries:
     st.info(
-        "No datasets in the repository. Upload CSV files on the **Repository** page."
+        "Brak zbiorów danych w repozytorium. Wyślij pliki CSV na stronie **Repozytorium**."
     )
     st.stop()
 

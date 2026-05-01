@@ -26,4 +26,5 @@ dependencies = [
     "svgwrite>=1.4.3",
     "nbconvert>=7.17.0",
     "accelerate>=1.1.0",
+    "seaborn>=0.13.2",
 ]

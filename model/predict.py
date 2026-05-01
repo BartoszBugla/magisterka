@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from transformers import PreTrainedTokenizerBase
 
 from model.choose_architecture import choose_architecture
+from model.prepare_dataset import coerce_text_for_tokenizer
 from config.global_config import SENTIMENT_LABELS, TRAIN_ASPECTS
 
 device = choose_architecture()
@@ -16,6 +17,8 @@ def predict(
 ) -> tuple[dict[str, str], dict[str, dict[str, float]]]:
     model = model.to(device)
     model.eval()
+
+    text = coerce_text_for_tokenizer(text)
 
     inputs = tokenizer(
         text,

@@ -82,17 +82,17 @@ def render_dataset_card_info(entry: EntryMetadata, stats: dict[str, Any]) -> Non
 
     meta_parts = []
     if n_rows:
-        meta_parts.append(f"**{n_rows:,}** reviews")
+        meta_parts.append(f"**{n_rows:,}** opinii")
     if n_places:
-        meta_parts.append(f"**{n_places:,}** places")
+        meta_parts.append(f"**{n_places:,}** miejsc")
     if aspects:
-        meta_parts.append(f"{len(aspects)} aspects")
+        meta_parts.append(f"{len(aspects)} aspektów")
 
     if meta_parts:
         st.caption(" · ".join(meta_parts))
 
     date_str = format_date(entry.created_at)
-    st.caption(f"Created: {date_str}")
+    st.caption(f"Utworzono: {date_str}")
 
     if entry.notes:
         st.caption(f"_{entry.notes}_")
@@ -101,11 +101,11 @@ def render_dataset_card_info(entry: EntryMetadata, stats: dict[str, Any]) -> Non
 def render_dataset_card_readonly(
     entry: EntryMetadata,
     stats: dict[str, Any],
-    button_label: str = "Open",
+    button_label: str = "Otwórz",
     button_key_prefix: str = "open",
 ) -> bool:
     with st.container(border=True):
-        col_main, col_btn = st.columns([4, 1])
+        col_main, col_btn = st.columns([8, 4])
 
         with col_main:
             render_dataset_card_info(entry, stats)
@@ -134,7 +134,7 @@ def render_dataset_card_editable(
             edit_clicked = st.button(
                 " ",
                 key=f"edit_{entry.csv_filename}",
-                help="Edit metadata",
+                help="Edytuj metadane",
                 use_container_width=True,
                 icon=":material/edit:",
             )
@@ -147,7 +147,7 @@ def render_dataset_card_editable(
                 file_name=entry.csv_filename,
                 mime="text/csv",
                 key=f"dl_{entry.csv_filename}",
-                help="Download CSV",
+                help="Pobierz CSV",
                 use_container_width=True,
                 icon=":material/download:",
             )
@@ -157,7 +157,7 @@ def render_dataset_card_editable(
             delete_clicked = st.button(
                 " ",
                 key=f"del_{entry.csv_filename}",
-                help="Delete dataset",
+                help="Usuń zbiór danych",
                 use_container_width=True,
                 type="primary",
                 icon=":material/delete:",
