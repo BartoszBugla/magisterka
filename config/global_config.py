@@ -82,6 +82,7 @@ class ModelType(Enum):
     TFIDF_LSA = "tfidf_lsa"
     FINE_TUNED_DISTILBERT_SST = "fine_tuned_distilbert_sst"
     TFIDF_LSA_RF = "tfidf_lsa_rf"
+    TEST_BERT_BASE_UNCASED_ABSA = "test_bert_base_uncased_absa"
 
 
 RESULTS_REPOSITORY_DIR = "statics/results_repository"

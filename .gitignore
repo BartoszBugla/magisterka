@@ -6,7 +6,6 @@ wytyczne/
 
 statics/models/
 statics/results_repository/
-statics/datasets/
 statics/prediction_cache/
 results/
 __pycache__/
@@ -16,3 +15,11 @@ label_studio/
 saved_models/
 .DS_Store
 trainer_output/
+
+absa_results/reviews
+statics/datasets/*
+!statics/datasets/training.csv
+!statics/datasets/validate.csv
+!statics/datasets/tfidf.csv
+**/.DS_Store
+absa_results/

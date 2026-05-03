@@ -3,7 +3,12 @@ from pathlib import Path
 import torch
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from config.global_config import MODEL_DIR, SentimentLabel
+from config.global_config import (
+    MODEL_DIR,
+    SENTIMENT_LABELS,
+    TRAIN_ASPECTS,
+    SentimentLabel,
+)
 from model.model import ABSAModel
 from model.predict import predict as absa_predict
 from predictions.prediction_model_base import PredictionModel
@@ -30,6 +35,7 @@ class FineTunedModel(PredictionModel):
         if not ckpt_file.is_file():
             raise FileNotFoundError(f"Checkpoint file not found: {ckpt_file}")
 
+        # CPU: loading directly to MPS can hit PyTorch "Unaligned blit" in load_state_dict.
         loaded = torch.load(ckpt_file, map_location="cpu", weights_only=False)
 
         base_model_name = (
@@ -43,8 +49,14 @@ class FineTunedModel(PredictionModel):
             else loaded
         )
 
-        model = ABSAModel(base_model_name)
+        model = ABSAModel(
+            base_model_name,
+            num_aspects=len(TRAIN_ASPECTS),
+            num_sentiments=len(SENTIMENT_LABELS),
+            class_weights=None,
+        )
         model.load_state_dict(state, strict=False)
+        model.cpu()
         model.eval()
 
         tokenizer = AutoTokenizer.from_pretrained(base_model_name)

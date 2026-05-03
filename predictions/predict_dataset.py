@@ -22,6 +22,10 @@ models = {
         aspects=TRAIN_ASPECTS,
         local_model_path="saved_models/distilbert-base-uncased_absa.pt",
     ),
+    ModelType.TEST_BERT_BASE_UNCASED_ABSA: lambda: FineTunedModel(
+        aspects=TRAIN_ASPECTS,
+        local_model_path="saved_models/distilbert-base-uncased-finetuned-sst-2-english_test_absa.pt",
+    ),
     ModelType.TFIDF_LSA: lambda: TfidfLsaModel(aspects=TRAIN_ASPECTS),
     ModelType.FINE_TUNED_DISTILBERT_SST: lambda: FineTunedModel(
         aspects=TRAIN_ASPECTS,

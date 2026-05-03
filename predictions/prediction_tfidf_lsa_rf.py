@@ -19,7 +19,7 @@ from config.global_config import (
 )
 from predictions.prediction_model_base import PredictionModel
 
-_TRAINING_CSV = f"{REPO_ROOT}/statics/datasets/training.csv"
+_TRAINING_CSV = f"{REPO_ROOT}/statics/datasets/tfidf.csv"
 _SEED = 25
 _N_COMPONENTS = 100
 

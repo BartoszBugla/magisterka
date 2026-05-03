@@ -1,61 +1,46 @@
-import inspect
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from transformers import AutoConfig, AutoModel, PreTrainedModel
+from torch.nn.modules import CrossEntropyLoss
+from transformers import AutoModel
 
-from config.global_config import SENTIMENT_LABELS, TRAIN_ASPECTS
 
+class FocalLoss(nn.Module):
+    def __init__(self, alpha: torch.Tensor | None = None, gamma: float = 2.0):
+        super().__init__()
+        self.register_buffer("alpha", alpha)
+        self.gamma = gamma
 
-def _encode_backbone(
-    bert: PreTrainedModel,
-    input_ids: torch.Tensor,
-    attention_mask: torch.Tensor,
-    token_type_ids: torch.Tensor | None,
-    _accepts_token_type_ids: bool,
-) -> torch.Tensor:
-    kwargs: dict = dict(
-        input_ids=input_ids, attention_mask=attention_mask, return_dict=True
-    )
-
-    if token_type_ids is not None and _accepts_token_type_ids:
-        kwargs["token_type_ids"] = token_type_ids
-
-    outputs = bert(**kwargs)
-
-    if hasattr(outputs, "pooler_output") and outputs.pooler_output is not None:
-        return outputs.pooler_output
-
-    return outputs.last_hidden_state[:, 0]
+    def forward(self, inputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        ce_loss = F.cross_entropy(inputs, targets, weight=self.alpha, reduction="none")
+        pt = torch.exp(-ce_loss)
+        return (((1 - pt) ** self.gamma) * ce_loss).mean()
 
 
 class ABSAModel(nn.Module):
     def __init__(
         self,
         model_name: str,
-        num_aspects: int = len(TRAIN_ASPECTS),
-        num_sentiments: int = len(SENTIMENT_LABELS),
-        dropout: float = 0.1,
+        num_aspects: int,
+        num_sentiments: int,
+        dropout_rate: float = 0.2,
         class_weights: torch.Tensor | None = None,
     ):
         super().__init__()
-
-        self.config = AutoConfig.from_pretrained(model_name)
-        self.bert = AutoModel.from_pretrained(model_name, config=self.config)
-
-        self._accepts_token_type_ids = (
-            "token_type_ids" in inspect.signature(self.bert.forward).parameters
-        )
-        self.dropout = nn.Dropout(dropout)
         self.num_aspects = num_aspects
         self.num_sentiments = num_sentiments
-        self.class_weights = class_weights
 
-        self.classifiers = nn.ModuleList(
-            [
-                nn.Linear(self.config.hidden_size, num_sentiments)
-                for _ in range(num_aspects)
-            ]
+        self.encoder = AutoModel.from_pretrained(model_name)
+        # UWAGA: Usunięto zamrażanie warstw. Trenujemy całego BERTa.
+
+        self.dropout = nn.Dropout(dropout_rate)
+        self.classifier = nn.Linear(
+            self.encoder.config.hidden_size, num_aspects * num_sentiments
+        )
+        self.loss_fn = (
+            CrossEntropyLoss(weight=class_weights)
+            if class_weights is not None
+            else CrossEntropyLoss()
         )
 
     def forward(
@@ -64,30 +49,21 @@ class ABSAModel(nn.Module):
         attention_mask: torch.Tensor,
         token_type_ids: torch.Tensor | None = None,
         labels: torch.Tensor | None = None,
-        **kwargs,
-    ) -> dict | torch.Tensor:
-        pooled = _encode_backbone(
-            self.bert,
-            input_ids,
-            attention_mask,
-            token_type_ids,
-            self._accepts_token_type_ids,
+    ):
+        outputs = self.encoder(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            return_dict=True,
         )
-        pooled = self.dropout(pooled)
 
-        logits = torch.stack([clf(pooled) for clf in self.classifiers], dim=1)
+        cls_repr = self.dropout(outputs.last_hidden_state[:, 0])
+        logits = self.classifier(cls_repr).view(
+            -1, self.num_aspects, self.num_sentiments
+        )
 
         if labels is not None:
-            w = (
-                self.class_weights.to(logits.device)
-                if self.class_weights is not None
-                else None
-            )
-            loss = F.cross_entropy(
-                logits.view(-1, self.num_sentiments),
-                labels.view(-1),
-                weight=w,
-            )
+            loss = self.loss_fn(logits.view(-1, self.num_sentiments), labels.view(-1))
             return {"loss": loss, "logits": logits}
 
         return logits
