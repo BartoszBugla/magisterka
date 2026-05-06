@@ -23,3 +23,6 @@ statics/datasets/*
 !statics/datasets/tfidf.csv
 **/.DS_Store
 absa_results/
+absa_results_quick/
+absa_results_smoke/
+*_last_run.ipynb

@@ -6,8 +6,7 @@ import pandas as pd
 from config.global_config import SentimentLabel, TRAIN_ASPECTS, ModelType
 
 from predictions.prediction_fine_tuned import FineTunedModel
-from predictions.prediction_tfidf_lsa import TfidfLsaModel
-from predictions.prediction_tfidf_lsa_rf import TfidfLsaRfModel
+from predictions.prediction_tfidf_lsa import TfidfLsaModel, TfidfLsaRfModel
 
 
 PROGRESS_BAR_STEP = 10

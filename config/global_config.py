@@ -25,33 +25,6 @@ NON_ASPECT_COLUMNS: frozenset[str] = frozenset(
     }
 )
 
-TARGET_CATEGORIES = [
-    "Park",
-    "City park",
-    "Playground",
-    "Sports complex",
-    "Public swimming pool",
-    "Recreation center",
-    "Train station",
-    "Transit station",
-    "Bus station",
-    "Subway station",
-    "Museum",
-    "Art gallery",
-    "Historical landmark",
-    "Monument",
-    "Castle",
-    "Town square",
-    "Plaza",
-    "Tourist attraction",
-    "Historical place",
-    "Shopping mall",
-    "Flea market",
-    "Farmers' market",
-    "Bazaar",
-]
-
-
 TRAIN_ASPECTS = [
     "safety",
     "cleanliness",
@@ -74,6 +47,15 @@ class SentimentLabel(str, Enum):
 
 
 SENTIMENT_LABELS = [e.value for e in SentimentLabel]
+
+SENTIMENT_3 = [
+    SentimentLabel.POSITIVE.value,
+    SentimentLabel.NEUTRAL.value,
+    SentimentLabel.NEGATIVE.value,
+]
+MENTION_LABELS = [SentimentLabel.NOTMENTIONED.value, "mentioned"]
+
+MAX_LENGTH = 128
 
 
 class ModelType(Enum):

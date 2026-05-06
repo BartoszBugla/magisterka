@@ -1,53 +1,43 @@
+"""Single-text inference for the dual-head ABSA model."""
+
+from __future__ import annotations
+
 import torch
-from torch import nn
 import torch.nn.functional as F
 from transformers import PreTrainedTokenizerBase
 
-from model.choose_architecture import choose_architecture
-from model.prepare_dataset import coerce_text_for_tokenizer
-from config.global_config import SENTIMENT_LABELS, TRAIN_ASPECTS
+from config.global_config import MAX_LENGTH, SENTIMENT_3, TRAIN_ASPECTS
+from model.choose_architecture import get_device
+from model.prepare_dataset import coerce_text
 
-device = choose_architecture()
+NM = "notmentioned"
 
 
 def predict(
     text: str,
-    model: nn.Module,
+    model: torch.nn.Module,
     tokenizer: PreTrainedTokenizerBase,
+    *,
+    mention_threshold: float = 0.5,
 ) -> tuple[dict[str, str], dict[str, dict[str, float]]]:
-    model = model.to(device)
-    model.eval()
+    """Return (labels, probabilities) for every aspect."""
+    device = get_device()
+    model.to(device).eval()
 
-    text = coerce_text_for_tokenizer(text)
-
-    inputs = tokenizer(
-        text,
-        add_special_tokens=True,
-        truncation=True,
-        max_length=128,
-        padding="max_length",
-        return_tensors="pt",
-    )
-    inputs = {k: v.to(device) for k, v in inputs.items()}
+    enc = tokenizer(coerce_text(text), add_special_tokens=True, truncation=True, max_length=MAX_LENGTH, padding=True, return_tensors="pt")
+    enc = {k: v.to(device) for k, v in enc.items()}
 
     with torch.no_grad():
-        logits = model(**inputs)  # (1, num_aspects, num_sentiments)
-        # Softmax across the sentiment dimension
-        probs = (
-            F.softmax(logits, dim=-1).cpu().numpy()[0]
-        )  # (num_aspects, num_sentiments)
+        out = model(**enc)
 
-    results = {}
-    probabilities = {}
+    m_probs = F.softmax(out["mention_logits"][0], dim=-1).cpu().numpy()
+    s_probs = F.softmax(out["sentiment_logits"][0], dim=-1).cpu().numpy()
 
+    labels, probs = {}, {}
     for i, aspect in enumerate(TRAIN_ASPECTS):
-        aspect_probs = probs[i]  # (num_sentiments,)
-        sentiment_idx = int(aspect_probs.argmax())
+        pm = float(m_probs[i, 1])
+        sp = s_probs[i]
+        labels[aspect] = SENTIMENT_3[int(sp.argmax())] if pm >= mention_threshold else NM
+        probs[aspect] = {NM: round(1.0 - pm, 4), **{SENTIMENT_3[j]: round(float(sp[j]) * pm, 4) for j in range(len(SENTIMENT_3))}}
 
-        results[aspect] = SENTIMENT_LABELS[sentiment_idx]
-        probabilities[aspect] = {
-            SENTIMENT_LABELS[j]: round(float(aspect_probs[j]), 4)
-            for j in range(len(SENTIMENT_LABELS))
-        }
-
-    return results, probabilities
+    return labels, probs
