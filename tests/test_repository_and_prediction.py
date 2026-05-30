@@ -157,9 +157,11 @@ class TestMockModelPolymorphism(unittest.TestCase):
 
     def test_predict_dataset_with_mock_fills_all_aspect_columns(self) -> None:
         patched = {ModelType.TFIDF_LSA: lambda: MockAbsaModel(aspects=TRAIN_ASPECTS)}
-        df = pd.DataFrame({
-            "text": ["Great park", "Terrible road", "Average food"],
-        })
+        df = pd.DataFrame(
+            {
+                "text": ["Great park", "Terrible road", "Average food"],
+            }
+        )
 
         with patch.object(pred_pkg, "models", patched):
             out = pred_pkg.predict_dataset(df, ModelType.TFIDF_LSA)
@@ -199,14 +201,16 @@ class TestPredictionToRepositoryIntegration(unittest.TestCase):
 
     def test_prediction_result_saved_as_labelled_ai(self) -> None:
         patched = {ModelType.TFIDF_LSA: lambda: MockAbsaModel(aspects=TRAIN_ASPECTS)}
-        df = pd.DataFrame({
-            "name": ["Muzeum", "Park Jordana"],
-            "latitude": [50.06, 50.07],
-            "longitude": [19.94, 19.92],
-            "text": ["Wspaniałe eksponaty", "Dużo zieleni"],
-            "time": ["2024-05-10", "2024-05-11"],
-            "rating": [5, 4],
-        })
+        df = pd.DataFrame(
+            {
+                "name": ["Muzeum", "Park Jordana"],
+                "latitude": [50.06, 50.07],
+                "longitude": [19.94, 19.92],
+                "text": ["Wspaniałe eksponaty", "Dużo zieleni"],
+                "time": ["2024-05-10", "2024-05-11"],
+                "rating": [5, 4],
+            }
+        )
 
         with patch.object(pred_pkg, "models", patched):
             result = pred_pkg.predict_dataset(df, ModelType.TFIDF_LSA)

@@ -26,3 +26,5 @@ absa_results/
 absa_results_quick/
 absa_results_smoke/
 *_last_run.ipynb
+
+absa_results**/

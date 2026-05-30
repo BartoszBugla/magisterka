@@ -1,19 +1,3 @@
-"""Testy jednostkowe walidacji wgrywanych plików CSV.
-
-Scenariusze:
-C1. Pusty plik (brak danych) — walidacja odrzuca z komunikatem „No file uploaded."
-C2. Niepoprawny format CSV (uszkodzona składnia) — walidacja odrzuca z komunikatem parsera.
-C3. Plik przekraczający limit rozmiaru (200 MB) — walidacja odrzuca z komunikatem limitu.
-C4. Brak wymaganej kolumny (np. „latitude") — walidacja odrzuca z komunikatem o brakującej kolumnie.
-C5. Kompletne kolumny dla zbioru RAW_REVIEWS — walidacja przechodzi (None).
-C6. Kompletne kolumny dla zbioru CLEANED — walidacja przechodzi (None).
-C7. Zbiór LABELLED_AI bez kolumn aspektowych — walidacja odrzuca „No aspect columns found."
-C8. Zbiór LABELLED_AI z poprawnymi etykietami sentymentu — walidacja przechodzi.
-C9. Zbiór LABELLED_HUMAN z wartościami NaN w kolumnach aspektowych — walidacja przechodzi (NaN → notmentioned).
-C10. Zbiór LABELLED_AI z nieprawidłową etykietą sentymentu (np. „invalid") — walidacja wykrywa niespójność.
-C11. Każda z wymaganych kolumn (name, latitude, longitude, text, time, rating) jest weryfikowana indywidualnie.
-"""
-
 from __future__ import annotations
 
 import unittest
@@ -23,7 +7,6 @@ from application.dataset_upload_validation import (
     is_csv_valid,
     is_in_limit,
     validate,
-    validate_columns,
 )
 from config.global_config import FILE_LIMIT
 
@@ -40,7 +23,7 @@ _ALL_REQUIRED = list(REQUIRED_COLUMNS)
 
 
 class TestCsvFormatValidation(unittest.TestCase):
-    """C1–C2: walidacja struktury pliku CSV."""
+    """walidacja struktury pliku CSV."""
 
     def test_empty_file_rejected(self) -> None:
         result = is_csv_valid(b"")
@@ -59,7 +42,7 @@ class TestCsvFormatValidation(unittest.TestCase):
 
 
 class TestFileSizeValidation(unittest.TestCase):
-    """C3: plik przekraczający limit 200 MB."""
+    """plik przekraczający limit 200 MB."""
 
     def test_within_limit_passes(self) -> None:
         small = b"a,b\n1,2\n"
@@ -73,7 +56,7 @@ class TestFileSizeValidation(unittest.TestCase):
 
 
 class TestRequiredColumnsValidation(unittest.TestCase):
-    """C4, C5, C6, C11: weryfikacja wymaganych kolumn dla każdego typu zbioru."""
+    """weryfikacja wymaganych kolumn dla każdego typu zbioru."""
 
     def test_raw_reviews_with_all_columns_passes(self) -> None:
         data = _build_csv_bytes(_ALL_REQUIRED)
@@ -96,7 +79,7 @@ class TestRequiredColumnsValidation(unittest.TestCase):
 
 
 class TestAspectColumnValidation(unittest.TestCase):
-    """C7–C10: weryfikacja kolumn aspektowych w zbiorach etykietowanych."""
+    """weryfikacja kolumn aspektowych w zbiorach etykietowanych."""
 
     def test_labelled_ai_without_aspect_columns_rejected(self) -> None:
         data = _build_csv_bytes(_ALL_REQUIRED)
@@ -107,7 +90,16 @@ class TestAspectColumnValidation(unittest.TestCase):
     def test_labelled_ai_with_valid_sentiments_passes(self) -> None:
         cols = _ALL_REQUIRED + ["safety", "cleanliness"]
         rows = [
-            ["Cafe", "50.0", "19.0", "Great food", "2024-01-01", "5", "positive", "neutral"],
+            [
+                "Cafe",
+                "50.0",
+                "19.0",
+                "Great food",
+                "2024-01-01",
+                "5",
+                "positive",
+                "neutral",
+            ],
         ]
         data = _build_csv_bytes(cols, rows)
         result = validate(data, DatasetType.LABELLED_AI)
@@ -147,18 +139,24 @@ class TestAspectColumnValidation(unittest.TestCase):
     def test_labelled_with_multiple_aspect_columns_passes(self) -> None:
         cols = _ALL_REQUIRED + ["safety", "cleanliness", "infrastructure", "costs"]
         rows = [
-            ["Place", "50.0", "19.0", "Text", "2024-01-01", "5",
-             "positive", "neutral", "negative", "notmentioned"],
+            [
+                "Place",
+                "50.0",
+                "19.0",
+                "Text",
+                "2024-01-01",
+                "5",
+                "positive",
+                "neutral",
+                "negative",
+                "notmentioned",
+            ],
         ]
         data = _build_csv_bytes(cols, rows)
         result = validate(data, DatasetType.LABELLED_AI)
         self.assertIsNone(result)
 
     def test_labelled_ai_with_invalid_sentiment_triggers_nan_fill(self) -> None:
-        """C10: nieprawidłowa etykieta (np. 'invalid') nie jest odrzucana wprost,
-        lecz walidator wypełnia puste pola wartością 'notmentioned'.
-        Etykieta 'invalid' nie należy do SENTIMENT_LABELS, więc isin() zwraca False
-        i uruchamia gałąź fillna — ale sam wiersz nie jest odrzucany."""
         cols = _ALL_REQUIRED + ["safety"]
         rows = [
             ["Cafe", "50.0", "19.0", "Good food", "2024-01-01", "5", "invalid"],
@@ -174,7 +172,14 @@ class TestEndToEndValidation(unittest.TestCase):
     def test_complete_raw_reviews_file(self) -> None:
         cols = _ALL_REQUIRED
         rows = [
-            ["Muzeum Narodowe", "50.06", "19.94", "Wspaniałe eksponaty", "2024-05-10", "5"],
+            [
+                "Muzeum Narodowe",
+                "50.06",
+                "19.94",
+                "Wspaniałe eksponaty",
+                "2024-05-10",
+                "5",
+            ],
             ["Rynek Główny", "50.06", "19.94", "Piękne miejsce", "2024-05-11", "4"],
         ]
         data = _build_csv_bytes(cols, rows)
@@ -183,10 +188,26 @@ class TestEndToEndValidation(unittest.TestCase):
     def test_complete_labelled_ai_file(self) -> None:
         cols = _ALL_REQUIRED + ["safety", "heritage"]
         rows = [
-            ["Zamek Królewski", "50.05", "19.93", "Bezpieczna okolica", "2024-06-01", "5",
-             "positive", "neutral"],
-            ["Park Jordana", "50.06", "19.92", "Dużo zieleni", "2024-06-02", "4",
-             "notmentioned", "positive"],
+            [
+                "Zamek Królewski",
+                "50.05",
+                "19.93",
+                "Bezpieczna okolica",
+                "2024-06-01",
+                "5",
+                "positive",
+                "neutral",
+            ],
+            [
+                "Park Jordana",
+                "50.06",
+                "19.92",
+                "Dużo zieleni",
+                "2024-06-02",
+                "4",
+                "notmentioned",
+                "positive",
+            ],
         ]
         data = _build_csv_bytes(cols, rows)
         self.assertIsNone(validate(data, DatasetType.LABELLED_AI))

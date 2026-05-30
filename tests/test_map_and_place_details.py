@@ -1,16 +1,3 @@
-"""Zbiór scenariuszy B: widok mapy + panel szczegółów miejsca.
-
-Mapa (warstwa, agregacja, tooltip):
-    B1. Klucz miejsca ``place_group_keys`` — ten sam ``gmap_id`` grupuje opinie w jeden punkt (niezależnie od drobnych różnic współrzędnych).
-    B2. ``aggregate_points_by_place`` — dwa rekordy jednej restauracji dają jeden punkt z ``n_reviews`` oraz promieniem zależnym od liczby opinii.
-    B3. ``build_map`` — ciemny styl mapy, warstwa ``ScatterplotLayer``, szablon HTML tooltipu (placeholder ``{place_name}`` + „Kliknij…”) oraz wiersz agregatu z faktyczną nazwą miejsca.
-    B4. Kolor punktu dla etykiet sentymentu — przy przewadze pozytywnych etykiet intensywność alf kanału odpowiada sygnałowi (test na zielonym RGB).
-Szczegóły miejsca (logika panelu bez UI Streamlit):
-    B5. ``find_metadata_for_place`` znajduje rekord dodatkowych metadanych po dopasowaniu ``name``.
-    B6. ``reviews_for_place`` + ``sentiment_counts`` — filtrowanie wierszy do jednego `_place_key` i zliczenia etykiet dla aspektu.
-    B7. ``filter_reviews`` zawęża listę opinii do wybranego sentymentu przy danym aspekcie.
-"""
-
 from __future__ import annotations
 
 import unittest
@@ -37,8 +24,6 @@ from config.global_config import SentimentLabel
 
 
 class TestMapAggregationAndDeck(unittest.TestCase):
-    """Scenariusze wizualnej mapy (pydeck) i agregacji punktów."""
-
     def test_place_group_prefers_stable_gmap_id(self) -> None:
         df = pd.DataFrame(
             {
@@ -125,8 +110,6 @@ class TestMapAggregationAndDeck(unittest.TestCase):
 
 
 class TestPlaceDetailsLogic(unittest.TestCase):
-    """Scenariusze danych używanych w „szczegółach po kliknięciu” na mapę."""
-
     def test_find_metadata_by_place_name(self) -> None:
         meta_df = pd.DataFrame(
             {

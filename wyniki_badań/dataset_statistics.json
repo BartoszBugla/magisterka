@@ -1,0 +1,173 @@
+{
+  "training": {
+    "rows": 4251,
+    "columns": [
+      "time",
+      "rating",
+      "text",
+      "name",
+      "category",
+      "latitude",
+      "longitude",
+      "safety",
+      "cleanliness",
+      "infrastructure",
+      "nature",
+      "attractions",
+      "heritage",
+      "costs",
+      "other",
+      "created_at",
+      "id",
+      "lead_time",
+      "updated_at"
+    ],
+    "aspects_present": [
+      "safety",
+      "cleanliness",
+      "infrastructure",
+      "nature",
+      "attractions",
+      "heritage",
+      "costs",
+      "other"
+    ],
+    "text_stats": {
+      "min_words": 1,
+      "max_words": 695,
+      "median_words": 8.0,
+      "mean_words": 17.3
+    },
+    "label_distribution": {
+      "safety": {
+        "notmentioned": 3996,
+        "negative": 103,
+        "positive": 67,
+        "neutral": 15,
+        "-73.9000": 12,
+        "-73.983": 8,
+        "-74.0000": 6,
+        "-74.008": 6,
+        "-73.976": 6,
+        "-73.976807": 2,
+        "-73.993519": 2,
+        "-73.997504": 2,
+        "-73.885091": 2,
+        "-74.145604": 2,
+        "-73.975416": 2,
+        "-73.990774": 2,
+        "-73.927624": 2,
+        "-74.000938": 2,
+        "-73.8000": 2,
+        "-73.96": 2,
+        "-74.008938": 2,
+        "-73.994928": 2,
+        "-74.0131": 2,
+        "-73.9800": 2,
+        "-73.984": 2
+      },
+      "cleanliness": {
+        "notmentioned": 3757,
+        "positive": 316,
+        "negative": 174,
+        "neutral": 4
+      },
+      "infrastructure": {
+        "notmentioned": 3087,
+        "positive": 720,
+        "negative": 353,
+        "neutral": 87,
+        "mixed": 4
+      },
+      "nature": {
+        "notmentioned": 3448,
+        "positive": 731,
+        "negative": 44,
+        "neutral": 27,
+        "pos": 1
+      },
+      "attractions": {
+        "notmentioned": 2314,
+        "positive": 1710,
+        "negative": 132,
+        "neutral": 92,
+        "mixed": 2,
+        "not": 1
+      },
+      "heritage": {
+        "notmentioned": 3579,
+        "positive": 629,
+        "neutral": 29,
+        "negative": 14
+      },
+      "costs": {
+        "notmentioned": 3807,
+        "negative": 209,
+        "positive": 196,
+        "neutral": 39
+      },
+      "other": {
+        "positive": 2408,
+        "notmentioned": 1032,
+        "negative": 509,
+        "neutral": 285,
+        "mixed": 17
+      }
+    }
+  },
+  "test": {
+    "rows": 1191,
+    "total_labels": 9528,
+    "label_distribution": {
+      "safety": {
+        "notmentioned": 1128,
+        "negative": 30,
+        "positive": 23,
+        "neutral": 10
+      },
+      "cleanliness": {
+        "notmentioned": 1112,
+        "positive": 50,
+        "negative": 24,
+        "neutral": 5
+      },
+      "infrastructure": {
+        "notmentioned": 914,
+        "positive": 153,
+        "negative": 89,
+        "neutral": 35
+      },
+      "nature": {
+        "notmentioned": 924,
+        "positive": 236,
+        "neutral": 18,
+        "negative": 13
+      },
+      "attractions": {
+        "notmentioned": 705,
+        "positive": 421,
+        "negative": 40,
+        "neutral": 25
+      },
+      "heritage": {
+        "notmentioned": 1023,
+        "positive": 135,
+        "neutral": 20,
+        "negative": 13
+      },
+      "costs": {
+        "notmentioned": 1069,
+        "negative": 58,
+        "positive": 51,
+        "neutral": 13
+      },
+      "other": {
+        "positive": 604,
+        "notmentioned": 338,
+        "neutral": 137,
+        "negative": 111,
+        "positive  ": 1
+      }
+    }
+  }
+}

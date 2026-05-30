@@ -1,217 +1,284 @@
-# ABSA Sentiment Analysis Dashboard
+# ABSA — aspektowa analiza sentymentu recenzji lokalizacji
 
-Aspektowa Analiza Sentymentu (ABSA) dla recenzji lokalizacji z interaktywną wizualizacją na mapie.
+Aplikacja webowa (Streamlit) do aspektowej analizy sentymentu (ABSA) recenzji miejsc turystycznych z wizualizacją wyników na interaktywnej mapie.
 
-## Funkcjonalności
+Projekt jest dystrybuowany jako **archiwum ZIP**. Po rozpakowaniu wykonaj kroki instalacji opisane poniżej — **nie jest wymagany Git ani konto GitHub**.
 
-- **Model BERT ABSA**: Fine-tuned BERT do wieloetykietowej klasyfikacji sentymentu aspektowego
-- **8 Aspektów**: Safety, Cleanliness, Infrastructure, Nature, Attractions, Heritage, Costs, Other
-- **4 Sentymentu**: Positive, Neutral, Negative, Not Mentioned
-- **Interaktywna Mapa**: Wizualizacja sentymentu geograficznie z heatmapami i widokami 3D
-- **Predykcja na żywo**: Analiza niestandardowych recenzji w czasie rzeczywistym
-- **3 Metody predykcji**: Fine-tuned BERT, Zero-shot (BART-MNLI), LLM (GPT-4o-mini)
+**8 aspektów:** safety, cleanliness, infrastructure, nature, attractions, heritage, costs, other  
+**4 etykiety sentymentu:** positive, neutral, negative, notmentioned
+
+---
+
+## Szybki start
+
+Poniższe kroki zakładają, że archiwum ZIP projektu jest **już rozpakowane** na dysku lokalnym.
+
+```bash
+# 1. Wejdź do katalogu projektu (dostosuj ścieżkę do swojej lokalizacji)
+cd /ścieżka/do/projekt-magisterski
+
+# 2. Zainstaluj uv (jeśli nie masz) — patrz sekcja „Wymagane narzędzia”
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 3. Zainstaluj Pythona 3.14 i utwórz środowisko wirtualne
+uv python install 3.14
+uv venv --python 3.14
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+
+# 4. Zainstaluj zależności projektu
+uv sync
+
+# 5. Uruchom aplikację
+uv run streamlit run app.py
+```
+
+Aplikacja otworzy się pod adresem **http://localhost:8501**.
+
+Model **TF-IDF + LSA** działa od razu po instalacji (trenuje się automatycznie przy pierwszym użyciu z pliku `statics/datasets/training.csv`). Modele **BERT / DistilBERT** wymagają wcześniejszego wytrenowania — patrz sekcja [Trening modeli](#trening-modeli).
 
 ---
 
 ## Wymagania systemowe
 
-| Komponent | Wersja |
-|-----------|--------|
-| Python | `3.14` |
-| uv (package manager) | `>=0.10.0` |
-| System | macOS / Linux / Windows |
+| Komponent | Wersja | Link |
+|-----------|--------|------|
+| Python | `3.14` | [python.org/downloads](https://www.python.org/downloads/) |
+| uv (menedżer pakietów) | `>= 0.10.0` | [docs.astral.sh/uv](https://docs.astral.sh/uv/) |
+| System | macOS / Linux / Windows | — |
+| RAM | min. 16 GB (zalecane 24 GB przy modelach BERT) | — |
+| Dysk | ~5 GB (PyTorch, transformers, cache Hugging Face) | — |
 
 ---
 
-## Instalacja krok po kroku
+## Wymagane narzędzia (instalacja jednorazowa)
 
-### 1. Instalacja `uv` (package manager)
+Przed pierwszym uruchomieniem projektu zainstaluj poniższe narzędzia. Nie są one dołączone do archiwum ZIP.
 
-`uv` to szybki menedżer pakietów Python. Zainstaluj go jedną z poniższych metod:
+### `uv` — menedżer pakietów Python
+
+- Dokumentacja: [https://docs.astral.sh/uv/](https://docs.astral.sh/uv/)
+- Instalator: [https://astral.sh/uv](https://astral.sh/uv)
 
 **macOS / Linux:**
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-**Windows (PowerShell):**
-```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
-
-**Weryfikacja instalacji:**
+**Weryfikacja:**
 ```bash
 uv --version
-# Oczekiwany wynik: uv 0.10.x
 ```
 
-### 2. Instalacja Python 3.14
+### Python 3.14
 
-`uv` automatycznie zarządza wersjami Pythona. Aby zainstalować Python 3.14:
+`uv` może pobrać i zarządzać wersją Pythona automatycznie:
 
 ```bash
 uv python install 3.14
-```
-
-**Weryfikacja:**
-```bash
 uv python list | grep 3.14
-# Powinno pokazać: cpython-3.14.x
 ```
 
-### 3. Klonowanie repozytorium
+Alternatywnie Python można zainstalować ręcznie ze strony [https://www.python.org/downloads/](https://www.python.org/downloads/) (wersja 3.14).
+
+---
+
+## Instalacja krok po kroku
+> **Uwaga:** Wszystkie poniższe komendy należy wykonywać z katalogu głównego projektu.
+
+### 1. Instalacja `uv` i Pythona 3.14
+
+Jeśli nie masz jeszcze zainstalowanych narzędzi, wykonaj kroki z sekcji [Wymagane narzędzia](#wymagane-narzędzia-instalacja-jednorazowa).
+
+### 2. Środowisko wirtualne i zależności
 
 ```bash
-git clone <url-repozytorium>
-cd projekt-magisterski
-```
-
-### 4. Tworzenie środowiska wirtualnego i instalacja zależności
-
-```bash
-# Utworzenie środowiska wirtualnego z Python 3.14
 uv venv --python 3.14
+source .venv/bin/activate        # macOS / Linux
 
-# Aktywacja środowiska (macOS/Linux)
-source .venv/bin/activate
-
-# Aktywacja środowiska (Windows)
-.venv\Scripts\activate
-
-# Instalacja wszystkich zależności z pyproject.toml
 uv sync
 ```
 
-### 5. (Opcjonalnie) Konfiguracja zmiennych środowiskowych
+Polecenie `uv sync` instaluje wszystkie biblioteki wymienione w `pyproject.toml` (PyTorch, Streamlit, transformers itd.) zgodnie z wersjami zablokowanymi w pliku `uv.lock`.
 
-Jeśli chcesz używać predykcji LLM (GPT-4o-mini), utwórz plik `.env`:
+**Przy pierwszej instalacji pobierane są duże pakiety** (PyTorch ~2 GB, modele Hugging Face przy treningu). Wymagane jest połączenie z internetem.
 
-```bash
-echo "OPENAI_API_KEY=twoj-klucz-api" > .env
-```
 
 ---
 
 ## Uruchomienie aplikacji
 
-### Aplikacja Streamlit (główny dashboard)
+Upewnij się, że jesteś w katalogu projektu i masz aktywne środowisko wirtualne:
 
 ```bash
-streamlit run app.py
+cd /ścieżka/do/projekt-magisterski
+source .venv/bin/activate 
+
+uv run streamlit run app.py
 ```
 
-Aplikacja uruchomi się domyślnie pod adresem: **http://localhost:8501**
+Domyślny adres: **http://localhost:8501**  
+Dokumentacja Streamlit: [https://docs.streamlit.io/](https://docs.streamlit.io/)
 
-**Dostępne strony w aplikacji:**
-- **Home** — główna mapa z wizualizacją sentymentu
-- **Data Table** — podgląd danych w formie tabeli
-- **Label Dataset** — narzędzie do etykietowania danych
-- **Repository** — repozytorium wyników
+### Strony aplikacji
+
+| Strona | Plik | Opis |
+|--------|------|------|
+| Strona główna | `pages/home.py` | Mapa z wizualizacją sentymentu per aspekt |
+| Tabela danych | `pages/data_table.py` | Podgląd zbiorów w formie tabeli |
+| Etykietowanie danych | `pages/label_dataset.py` | Automatyczne etykietowanie zbiorów modelem ML |
+| Repozytorium | `pages/repository.py` | Upload, podgląd i usuwanie zbiorów danych |
 
 ---
 
-## Notebooki Jupyter
+## Pierwsze kroki w aplikacji
 
-Projekt zawiera notebooki do eksploracji danych, trenowania modelu i ewaluacji. Aby je uruchomić:
+Typowy przepływ pracy:
+
+1. **Repozytorium** — wgraj plik CSV z recenzjami (typ: *Surowe — opinie* lub *Oczyszczone*). Wymagane kolumny m.in.: `name`, `latitude`, `longitude`, `text`, `time`, `rating`.
+2. **Etykietowanie danych** — wybierz zbiór źródłowy i model (np. TF-IDF + LSA), uruchom etykietowanie, zapisz wynik do repozytorium jako `LABELLED_AI`.
+3. **Strona główna** — wybierz etykietowany zbiór, aspekt i przeglądaj wyniki na mapie. Kliknięcie punktu otwiera szczegóły miejsca i listę opinii.
+
+Przykładowe pliki CSV do testów znajdują się w `statics/datasets/`:
+- `training.csv` — zbiór treningowy (używany przez TF-IDF)
+- `validate.csv` — zbiór walidacyjny
+- `tfidf.csv` — dane do eksperymentów TF-IDF
+
+Repozytorium użytkownika (`statics/results_repository/`) tworzy się automatycznie przy pierwszym zapisie.
+
+---
+
+## Modele predykcji
+
+W interfejsie aplikacji dostępne są trzy modele:
+
+| Model w UI | Typ w kodzie | Wymagania |
+|------------|--------------|-----------|
+| TF-IDF + LSA + regresja logistyczna | `ModelType.TFIDF_LSA` | Działa od razu — trenuje się lazy z `statics/datasets/training.csv` |
+| BERT (fine-tuned) | `ModelType.FINE_TUNED_BERT` | Plik `saved_models/bert-base-uncased_absa.pt` |
+| DistilBERT (fine-tuned) | `ModelType.FINE_TUNED_DISTILBERT` | Plik `saved_models/distilbert-base-uncased_absa.pt` |
+
+Dodatkowe modele zdefiniowane w kodzie (`predictions/predict_dataset.py`), używane głównie w notebookach:
+
+| Typ | Plik checkpointu |
+|-----|------------------|
+| `TFIDF_LSA_RF` | — (trenuje się lazy, Random Forest zamiast LR) |
+| `FINE_TUNED_DISTILBERT_SST` | `saved_models/distilbert-base-uncased-finetuned-sst-2-english_absa.pt` |
+| `TEST_BERT_BASE_UNCASED_ABSA` | `saved_models/distilbert-base-uncased-finetuned-sst-2-english_test_absa.pt` |
+
+Katalog `saved_models/` może być pusty w archiwum ZIP — checkpointy powstają po treningu (patrz poniżej) lub mogą być dołączone osobno przez autora projektu.
+
+---
+
+## Trening modeli
+
+Trening odbywa się przez notebooki Jupyter uruchamiane z **głównego katalogu projektu**:
+
+- Jupyter: [https://jupyter.org/](https://jupyter.org/)
+- Hugging Face Transformers: [https://huggingface.co/docs/transformers/](https://huggingface.co/docs/transformers/)
+- PyTorch: [https://pytorch.org/](https://pytorch.org/)
 
 ```bash
-# Uruchomienie Jupyter (jeśli nie masz zainstalowanego)
-uv pip install jupyter
+cd /ścieżka/do/projekt-magisterski
+source .venv/bin/activate
 
-# Start Jupyter
+uv pip install jupyter
 jupyter notebook
 ```
 
-### Główne notebooki
-
 | Notebook | Opis |
 |----------|------|
-| `_train-absa-model.ipynb` | **Trening modelu ABSA** — fine-tuning BERT na zbiorze etykietowanym. Konfiguracja hiperparametrów, podział train/val, zapis wag modelu. |
-| `_model_results.ipynb` | **Porównanie metod** — ewaluacja trzech metod (Fine-tuned BERT, Zero-shot, LLM). Metryki: Precision, Recall, F1, Accuracy. Macierze pomyłek. |
-| `_prediction_tests.ipynb` | **Testy predykcji** — szybkie testy predykcji na zbiorze danych dla każdej z trzech metod. |
+| `_train_absa_model.ipynb` | Fine-tuning BERT (`bert-base-uncased`) → `saved_models/bert-base-uncased_absa.pt`. Zawiera wykres historii treningu (loss, F1). |
+| `_train_absa_model-distilbert.ipynb` | Fine-tuning DistilBERT → `saved_models/distilbert-base-uncased_absa.pt`. Zawiera wykres historii treningu. |
+| `_model_results.ipynb` | **Główny notebook wyników badań** — porównanie metod predykcji, metryki F1, macierze pomyłek, macierz zgodności między modelami. |
+| `_tf_idf_results.ipynb` | Wyniki baseline TF-IDF + LSA — ewaluacja i porównanie z modelami neuronowymi. |
 
-### Notebooki eksperymentalne (`experiments/`)
+Notebooki eksperymentalne w katalogu `experiments/`:
+- `data-preparation.ipynb` — przygotowanie i czyszczenie danych
+- `eda_reviews.ipynb`, `eda_metadata.ipynb` — analiza eksploracyjna
+- `transform-json-to-csv.ipynb` — konwersja JSON → CSV
 
-| Notebook | Opis |
-|----------|------|
-| `data-preparation.ipynb` | Przygotowanie i czyszczenie danych |
-| `data-labelling-with-ai.ipynb` | Automatyczne etykietowanie danych z AI |
-| `eda_reviews.ipynb` | Eksploracyjna analiza recenzji |
-| `eda_metadata.ipynb` | Eksploracyjna analiza metadanych |
-| `transform-json-to-csv.ipynb` | Konwersja danych JSON do CSV |
+---
 
-### Jak działają notebooki?
+## Wyniki badań
 
-1. **Importy z projektu** — Notebooki korzystają z modułów projektu (`config/`, `model/`, `predictions/`), więc muszą być uruchamiane z głównego katalogu projektu.
+Wyniki badań magisterskich znajdują się w **notebookach Jupyter** w katalogu głównym projektu:
 
-2. **Konfiguracja globalna** — Wspólna konfiguracja w `config/global_config.py`:
-   - `TRAIN_ASPECTS` — lista 8 aspektów do analizy
-   - `SENTIMENT_LABELS` — etykiety sentymentu (positive, neutral, negative, notmentioned)
-   - `ModelType` — enum z typami modeli (FINE_TUNED, ZERO_SHOT, LLM)
+| Notebook | Co zawiera |
+|----------|--------------|
+| `_model_results.ipynb` | Najważniejszy plik. Porównanie modeli, metryki per aspekt, macierze pomyłek, macierz zgodności |
+| `_train_absa_model.ipynb` | Proces treningu BERT, krzywe uczenia, wyniki walidacji |
+| `_train_absa_model-distilbert.ipynb` | Proces treningu DistilBERT, krzywe uczenia, wyniki walidacji |
+| `_tf_idf_results.ipynb` | Wyniki baseline TF-IDF + LSA |
+
+Po uruchomieniu notebooków (lub skryptu `wyniki_badań/generate_results.py`) wygenerowane pliki trafiają do katalogu **`wyniki_badań/`**:
+
+| Plik | Opis |
+|------|------|
+| `table5_model_comparison.csv` | Tabela porównawcza modeli (Tabela 5 z pracy) |
+| `per_aspect_f1_4class.csv` / `per_aspect_f1_mentioned.csv` | F1 per aspekt |
+| `per_aspect_f1_heatmap.png` | Mapa ciepła F1 per aspekt |
+| `confusion_matrices.png` | Macierze pomyłek |
+| `agreement_matrix.csv` / `.png` | Macierz zgodności między metodami |
+| `coverage_by_aspect.csv` / `.png` | Pokrycie aspektów w danych |
+| `training_history.png` | Historia treningu (loss, F1) |
+| `dataset_statistics.json` | Statystyki zbioru danych |
+| `test_results.txt` | Wyniki testów automatycznych (`pytest`) |
+
+---
+
+## Testy automatyczne
+
+- pytest: [https://docs.pytest.org/](https://docs.pytest.org/)
+
+```bash
+cd /ścieżka/do/projekt-magisterski
+source .venv/bin/activate
+
+uv run pytest
+```
+
+Testy obejmują m.in. walidację uploadu CSV, logikę mapy, repozytorium i predykcję. Scenariusze testów manualnych aplikacji opisane są w `tests/manual_tests.md`.
+
 ---
 
 ## Struktura projektu
 
 ```
 projekt-magisterski/
-├── app.py                      # Główna aplikacja Streamlit
-├── pages/                      # Podstrony aplikacji Streamlit
-│   ├── home.py                 # Strona główna z mapą
-│   ├── data_table.py           # Tabela danych
-│   ├── label_dataset.py        # Etykietowanie danych
-│   └── repository.py           # Repozytorium wyników
-├── config/
-│   └── global_config.py        # Globalna konfiguracja (aspekty, etykiety, ścieżki)
-├── model/                      # Moduły treningu i predykcji
-│   ├── train.py                # Skrypt treningu modelu
-│   ├── model.py                # Definicja architektury modelu
-│   ├── predict.py              # Funkcje predykcji
-│   └── prepare_dataset.py      # Przygotowanie danych do treningu
-├── predictions/                # Implementacje metod predykcji
-│   ├── predict_dataset.py      # Główna funkcja predykcji
-│   ├── prediction_fine_tuned.py # Predykcja z fine-tuned BERT
-│   ├── prediction_zero_shot.py  # Predykcja zero-shot
-│   └── prediction_llm.py       # Predykcja z LLM
-├── application/                # Komponenty aplikacji
-│   ├── map_components.py       # Komponenty mapy
-│   ├── visual_settings.py      # Ustawienia wizualne
-│   └── ...
+├── app.py                          # Punkt wejścia Streamlit
+├── pages/                          # Strony aplikacji
+├── config/global_config.py         # Aspekty, etykiety, ścieżki, enum ModelType
+├── model/                          # Architektura, trening, predykcja dual-head
+├── predictions/                    # Implementacje modeli (BERT, TF-IDF, LLM)
+├── application/                    # Logika UI: mapa, repozytorium, walidacja
 ├── statics/
-│   ├── datasets/               # Zbiory danych
-│   ├── models/                 # Zapisane wagi modeli
-│   └── results_repository/     # Wyniki eksperymentów
-├── experiments/                # Notebooki eksperymentalne
-├── _train-absa-model.ipynb     # Notebook treningu
-├── _model_results.ipynb        # Notebook ewaluacji
-├── _prediction_tests.ipynb     # Notebook testów
-├── pyproject.toml              # Konfiguracja projektu i zależności
-└── .python-version             # Wersja Pythona (3.14)
+│   ├── datasets/                   # Przykładowe CSV (training, validate, tfidf)
+│   ├── icons/                      # Ikony aplikacji
+│   └── results_repository/         # Repozytorium użytkownika (tworzone runtime)
+├── saved_models/                   # Checkpointy BERT/DistilBERT (po treningu)
+├── wyniki_badań/                   # Wygenerowane wyniki badań (CSV, PNG, JSON)
+├── _model_results.ipynb            # Notebook z wynikami porównania modeli
+├── _train_absa_model.ipynb         # Notebook treningu BERT + wyniki uczenia
+├── _train_absa_model-distilbert.ipynb  # Notebook treningu DistilBERT + wyniki uczenia
+├── _tf_idf_results.ipynb           # Notebook wyników baseline TF-IDF
+├── experiments/                    # Notebooki EDA i przygotowania danych
+├── tests/                          # Testy pytest + manual_tests.md
+├── pyproject.toml                  # Zależności projektu
+└── uv.lock                         # Zablokowane wersje pakietów
 ```
 
 ---
 
-## Zależności (zablokowane wersje)
+## Konfiguracja
 
-Wszystkie zależności są zdefiniowane w `pyproject.toml`:
+Wspólne stałe w `config/global_config.py`:
 
-| Pakiet | Wersja |
-|--------|--------|
-| torch | `>=2.11.0` |
-| transformers | `>=5.4.0` |
-| streamlit | `>=1.45.0` |
-| pandas | `>=3.0.1` |
-| polars | `>=1.18.0` |
-| scikit-learn | `>=1.8.0` |
-| openai | `>=2.30.0` |
-| spacy | `>=3.8.13` |
-| pydeck | `>=0.9.0` |
-| folium | `>=0.20.0` |
-| matplotlib | `latest` |
-| pydantic | `>=2.12.5` |
-| tqdm | `>=4.67.3` |
-| emoji | `>=2.15.0` |
-| playwright | `>=1.58.0` |
-| nbconvert | `>=7.17.0` |
+- `TRAIN_ASPECTS` — lista 8 aspektów
+- `SentimentLabel` / `SENTIMENT_LABELS` — etykiety sentymentu
+- `ModelType` — dostępne typy modeli
+- `MAX_LENGTH = 128` — maksymalna długość tokenów
+- `RESULTS_REPOSITORY_DIR` — katalog repozytorium (`statics/results_repository`)
+- `MODEL_DIR` — domyślny katalog modeli (`statics/models`)
 
 ---
 
@@ -222,28 +289,47 @@ Wszystkie zależności są zdefiniowane w `pyproject.toml`:
 uv python install 3.14
 ```
 
-### Błąd importu modułów projektu w notebookach
-Upewnij się, że uruchamiasz notebook z głównego katalogu projektu:
+### Błąd importu modułów w notebookach
+Uruchamiaj Jupyter z głównego katalogu projektu (tam, gdzie leży `app.py`):
 ```bash
-cd projekt-magisterski
+cd /ścieżka/do/projekt-magisterski
+source .venv/bin/activate
 jupyter notebook
 ```
 
-### Błąd CUDA / MPS
-Projekt automatycznie wykrywa dostępne urządzenie (CUDA, MPS, CPU). Jeśli masz problemy z GPU, 
-w większości kodu urządzenie jest dobierane automatycznie i zostalo to przetestowane na urządzeniu MacBook Pro m4.
+### `Checkpoint not found` przy modelu BERT/DistilBERT
+Wytrenuj model notebookiem `_train_absa_model.ipynb` lub `_train_absa_model-distilbert.ipynb`, albo użyj modelu TF-IDF + LSA, który nie wymaga checkpointu.
+
+### Wolne pierwsze etykietowanie TF-IDF
+Przy pierwszym uruchomieniu model TF-IDF trenuje się na `statics/datasets/training.csv` — to normalne i trwa kilkadziesiąt sekund.
+
+### CUDA / MPS / CPU
+Projekt automatycznie korzysta z dostępnego urządzenia PyTorch (CUDA, Apple MPS lub CPU). Przetestowano na MacBook Pro M4.
 
 ```python
 import torch
-print(torch.backends.mps.is_available())  # macOS
-print(torch.cuda.is_available())          # NVIDIA
+print(torch.backends.mps.is_available())  # macOS Apple Silicon
+print(torch.cuda.is_available())          # NVIDIA GPU
 ```
 
-### Błąd OpenAI API
-Upewnij się, że masz ustawiony klucz API:
-```bash
-export OPENAI_API_KEY="twoj-klucz"
+### Port 8501 zajęty
+Streamlit wybierze kolejny wolny port (np. 8502). 
 ```
+
+---
+
+## Przydatne linki
+
+| Narzędzie / biblioteka | Adres |
+|------------------------|-------|
+| uv (menedżer pakietów) | [https://docs.astral.sh/uv/](https://docs.astral.sh/uv/) |
+| Instalator uv | [https://astral.sh/uv](https://astral.sh/uv) |
+| Python 3.14 | [https://www.python.org/downloads/](https://www.python.org/downloads/) |
+| Streamlit | [https://docs.streamlit.io/](https://docs.streamlit.io/) |
+| PyTorch | [https://pytorch.org/](https://pytorch.org/) |
+| Hugging Face Transformers | [https://huggingface.co/docs/transformers/](https://huggingface.co/docs/transformers/) |
+| Jupyter Notebook | [https://jupyter.org/](https://jupyter.org/) |
+| pytest | [https://docs.pytest.org/](https://docs.pytest.org/) |
 
 ---
 

@@ -1,13 +1,3 @@
-"""Unit tests for the file repository (ResultsRepository).
-
-Scenariusze:
-1. Zapis wpisu tworzy katalog z CSV i metadata.json oraz exists() jest True.
-2. get_metadata zwraca spójne metadane (typ zbioru, notatki) po zapisie.
-3. Ponowny save tej samej nazwy nadpisuje zawartość pliku CSV.
-4. list_entries zwraca wpisy w kolejności alfabetycznej po nazwie pliku.
-5. Brak wpisu / po delete: exists False oraz odczyt metadanych i CSV rzuca FileNotFoundError.
-"""
-
 from __future__ import annotations
 
 import tempfile

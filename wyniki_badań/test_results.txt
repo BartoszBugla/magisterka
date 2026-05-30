@@ -1,0 +1,69 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.14.3, pytest-9.0.3, pluggy-1.6.0 -- /Users/bartoszbugla/projects/projekt-magisterski/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /Users/bartoszbugla/projects/projekt-magisterski
+configfile: pyproject.toml
+plugins: anyio-4.13.0
+collecting ... collected 42 items
+
+tests/test_dataset_upload_validation.py::TestCsvFormatValidation::test_empty_file_rejected PASSED [  2%]
+tests/test_dataset_upload_validation.py::TestCsvFormatValidation::test_malformed_csv_rejected PASSED [  4%]
+tests/test_dataset_upload_validation.py::TestCsvFormatValidation::test_valid_csv_passes PASSED [  7%]
+tests/test_dataset_upload_validation.py::TestFileSizeValidation::test_over_limit_rejected PASSED [  9%]
+tests/test_dataset_upload_validation.py::TestFileSizeValidation::test_within_limit_passes PASSED [ 11%]
+tests/test_dataset_upload_validation.py::TestRequiredColumnsValidation::test_cleaned_with_all_columns_passes PASSED [ 14%]
+tests/test_dataset_upload_validation.py::TestRequiredColumnsValidation::test_missing_single_required_column_rejected 
+tests/test_dataset_upload_validation.py::TestRequiredColumnsValidation::test_missing_single_required_column_rejected PASSED [ 16%]
+tests/test_dataset_upload_validation.py::TestRequiredColumnsValidation::test_raw_reviews_with_all_columns_passes PASSED [ 19%]
+tests/test_dataset_upload_validation.py::TestAspectColumnValidation::test_labelled_ai_with_invalid_sentiment_triggers_nan_fill PASSED [ 21%]
+tests/test_dataset_upload_validation.py::TestAspectColumnValidation::test_labelled_ai_with_nan_aspects_tolerated PASSED [ 23%]
+tests/test_dataset_upload_validation.py::TestAspectColumnValidation::test_labelled_ai_with_valid_sentiments_passes PASSED [ 26%]
+tests/test_dataset_upload_validation.py::TestAspectColumnValidation::test_labelled_ai_without_aspect_columns_rejected PASSED [ 28%]
+tests/test_dataset_upload_validation.py::TestAspectColumnValidation::test_labelled_human_with_valid_sentiments_passes PASSED [ 30%]
+tests/test_dataset_upload_validation.py::TestAspectColumnValidation::test_labelled_with_all_sentiment_labels_passes PASSED [ 33%]
+tests/test_dataset_upload_validation.py::TestAspectColumnValidation::test_labelled_with_multiple_aspect_columns_passes PASSED [ 35%]
+tests/test_dataset_upload_validation.py::TestEndToEndValidation::test_complete_labelled_ai_file PASSED [ 38%]
+tests/test_dataset_upload_validation.py::TestEndToEndValidation::test_complete_raw_reviews_file PASSED [ 40%]
+tests/test_dataset_upload_validation.py::TestEndToEndValidation::test_empty_then_valid_are_distinguishable PASSED [ 42%]
+tests/test_map_and_place_details.py::TestMapAggregationAndDeck::test_aggregate_merges_rows_by_place PASSED [ 45%]
+tests/test_map_and_place_details.py::TestMapAggregationAndDeck::test_aggregate_positive_cluster_uses_green_channel PASSED [ 47%]
+tests/test_map_and_place_details.py::TestMapAggregationAndDeck::test_build_map_scatter_layer_and_tooltip PASSED [ 50%]
+tests/test_map_and_place_details.py::TestMapAggregationAndDeck::test_place_group_prefers_stable_gmap_id PASSED [ 52%]
+tests/test_map_and_place_details.py::TestMapAggregationAndDeck::test_synthetic_aspect_produces_gray_marker PASSED [ 54%]
+tests/test_map_and_place_details.py::TestPlaceDetailsLogic::test_filter_reviews_by_sentiment PASSED [ 57%]
+tests/test_map_and_place_details.py::TestPlaceDetailsLogic::test_find_metadata_by_place_name PASSED [ 59%]
+tests/test_map_and_place_details.py::TestPlaceDetailsLogic::test_reviews_and_sentiment_counts_for_one_place_key PASSED [ 61%]
+tests/test_repository_and_prediction.py::TestRepositoryWorkflow::test_list_then_delete_updates_entries PASSED [ 64%]
+tests/test_repository_and_prediction.py::TestRepositoryWorkflow::test_save_roundtrip_matches_bytes_and_metadata PASSED [ 66%]
+tests/test_repository_and_prediction.py::TestPredictionWorkflow::test_blank_text_sets_notmentioned_without_predict PASSED [ 69%]
+tests/test_repository_and_prediction.py::TestPredictionWorkflow::test_empty_dataframe_returns_immediately PASSED [ 71%]
+tests/test_repository_and_prediction.py::TestPredictionWorkflow::test_predict_fills_labels_and_reports_progress PASSED [ 73%]
+tests/test_repository_and_prediction.py::TestMockModelPolymorphism::test_mock_model_conforms_to_base_interface PASSED [ 76%]
+tests/test_repository_and_prediction.py::TestMockModelPolymorphism::test_mock_model_injected_via_models_dict PASSED [ 78%]
+tests/test_repository_and_prediction.py::TestMockModelPolymorphism::test_mock_model_predict_returns_all_aspects PASSED [ 80%]
+tests/test_repository_and_prediction.py::TestMockModelPolymorphism::test_predict_dataset_with_mock_fills_all_aspect_columns PASSED [ 83%]
+tests/test_repository_and_prediction.py::TestMockModelPolymorphism::test_progress_callback_invoked_at_boundaries PASSED [ 85%]
+tests/test_repository_and_prediction.py::TestPredictionToRepositoryIntegration::test_prediction_result_saved_as_labelled_ai PASSED [ 88%]
+tests/test_results_repository.py::TestResultsRepository::test_delete_and_missing_entries_raise_on_read PASSED [ 90%]
+tests/test_results_repository.py::TestResultsRepository::test_get_metadata_matches_saved_fields PASSED [ 92%]
+tests/test_results_repository.py::TestResultsRepository::test_list_entries_sorted_by_filename PASSED [ 95%]
+tests/test_results_repository.py::TestResultsRepository::test_save_creates_csv_metadata_and_exists PASSED [ 97%]
+tests/test_results_repository.py::TestResultsRepository::test_save_overwrites_csv_bytes PASSED [100%]
+
+=============================== warnings summary ===============================
+.venv/lib/python3.14/site-packages/google/protobuf/internal/well_known_types.py:91
+  /Users/bartoszbugla/projects/projekt-magisterski/.venv/lib/python3.14/site-packages/google/protobuf/internal/well_known_types.py:91: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    _EPOCH_DATETIME_NAIVE = datetime.datetime.utcfromtimestamp(0)
+
+tests/test_dataset_upload_validation.py::TestAspectColumnValidation::test_labelled_ai_with_invalid_sentiment_triggers_nan_fill
+tests/test_dataset_upload_validation.py::TestAspectColumnValidation::test_labelled_ai_with_nan_aspects_tolerated
+  /Users/bartoszbugla/projects/projekt-magisterski/application/dataset_upload_validation.py:83: ChainedAssignmentError: A value is being set on a copy of a DataFrame or Series through chained assignment using an inplace method.
+  Such inplace method never works to update the original DataFrame or Series, because the intermediate object on which we are setting values always behaves as a copy (due to Copy-on-Write).
+  
+  For example, when doing 'df[col].method(value, inplace=True)', try using 'df.method({col: value}, inplace=True)' instead, to perform the operation inplace on the original object, or try to avoid an inplace operation using 'df[col] = df[col].method(value)'.
+  
+  See the documentation for a more detailed explanation: https://pandas.pydata.org/pandas-docs/stable/user_guide/copy_on_write.html
+    df[aspect_columns].fillna("notmentioned", inplace=True)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+============== 42 passed, 3 warnings, 6 subtests passed in 2.23s ===============

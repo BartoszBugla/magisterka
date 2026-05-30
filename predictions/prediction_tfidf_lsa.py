@@ -59,8 +59,11 @@ class _TfidfLsaBase(PredictionModel):
         }
 
         self._tfidf = TfidfVectorizer(
-            max_features=20_000, ngram_range=(1, 3), sublinear_tf=True,
-            min_df=2, stop_words="english",
+            max_features=20_000,
+            ngram_range=(1, 3),
+            sublinear_tf=True,
+            min_df=2,
+            stop_words="english",
         )
         X = self._tfidf.fit_transform(texts)
 
@@ -89,8 +92,11 @@ class _TfidfLsaBase(PredictionModel):
 class TfidfLsaModel(_TfidfLsaBase):
     def _make_classifier(self) -> Any:
         return LogisticRegression(
-            max_iter=2000, class_weight="balanced", C=1.0,
-            random_state=_SEED, solver="lbfgs",
+            max_iter=2000,
+            class_weight="balanced",
+            C=1.0,
+            random_state=_SEED,
+            solver="lbfgs",
         )
 
 
